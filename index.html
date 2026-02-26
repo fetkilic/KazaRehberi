@@ -1,0 +1,269 @@
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Kaza Rehberi - Zafer</title>
+    <link id="favicon" rel="icon" type="image/svg+xml" href="">
+    <script src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
+    <script src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
+    <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@300;400;600&display=swap" rel="stylesheet">
+    <style>
+        :root {
+            --glass-bg: rgba(255, 255, 255, 0.12);
+            --glass-border: rgba(255, 255, 255, 0.2);
+            --gold: #d4af37;
+            --emerald: #064e3b;
+            --deep-bg: #042f24;
+            --overlay-bg: rgba(4, 47, 36, 0.75); 
+            --danger: #ef4444;
+        }
+
+        body {
+            font-family: 'Montserrat', sans-serif;
+            background: linear-gradient(135deg, var(--deep-bg), #0a5c48);
+            background-attachment: fixed;
+            color: white; margin: 0; padding: 20px; display: flex; justify-content: center; min-height: 100vh;
+        }
+
+        #root { width: 100%; max-width: 500px; }
+
+        .glass-card {
+            background: var(--glass-bg); backdrop-filter: blur(15px); -webkit-backdrop-filter: blur(15px);
+            border: 1px solid var(--glass-border); border-radius: 25px; padding: 25px;
+            box-shadow: 0 8px 32px 0 rgba(0, 0, 0, 0.4);
+        }
+
+        .logo-container { text-align: center; margin-bottom: 25px; }
+        .logo-icon { width: 50px; height: 50px; fill: var(--gold); filter: drop-shadow(0 0 8px rgba(212, 175, 55, 0.4)); margin-bottom: 8px; }
+        .logo-text { font-weight: 600; letter-spacing: 4px; color: var(--gold); font-size: 1.2rem; margin: 0; }
+        .logo-subtext { font-size: 0.65rem; letter-spacing: 2px; text-transform: uppercase; opacity: 0.7; margin-top: 4px; }
+
+        .progress-section { background: rgba(0,0,0,0.2); padding: 15px; border-radius: 18px; border: 1px solid var(--glass-border); margin-bottom: 20px; }
+        .progress-label { display: flex; justify-content: space-between; font-size: 0.75rem; color: var(--gold); font-weight: 600; margin-bottom: 8px; }
+        .bar-bg { background: rgba(255,255,255,0.1); height: 10px; border-radius: 5px; overflow: hidden; }
+        .bar-fill { background: linear-gradient(90deg, var(--gold), #f3d47a); height: 100%; transition: width 0.8s cubic-bezier(0.17, 0.67, 0.83, 0.67); }
+
+        .selectors { display: flex; gap: 8px; margin-bottom: 15px; }
+        select {
+            flex: 1; padding: 12px; border-radius: 12px; border: 1px solid var(--glass-border);
+            background: rgba(255,255,255,0.1); color: white; outline: none; cursor: pointer; font-size: 13px;
+        }
+        select option { background: var(--emerald); }
+
+        .prayer-row {
+            display: flex; align-items: center; padding: 12px; background: rgba(255,255,255,0.05);
+            margin-bottom: 8px; border-radius: 12px; cursor: pointer;
+        }
+        .custom-check { width: 20px; height: 20px; border: 2px solid var(--gold); border-radius: 5px; margin-right: 12px; position: relative; }
+        .is-checked .custom-check { background: var(--gold); }
+        .is-checked .custom-check::after { content: '✓'; position: absolute; color: var(--emerald); font-weight: bold; font-size: 12px; left: 3px; top: -1px; }
+
+        .btn { width: 100%; padding: 14px; border-radius: 15px; font-weight: 600; border: none; cursor: pointer; margin-top: 10px; transition: 0.3s; }
+        .btn-gold { background: var(--gold); color: var(--emerald); letter-spacing: 1px; }
+        .btn-outline { background: transparent; color: white; border: 1px solid rgba(255,255,255,0.3); font-size: 12px; }
+        .btn:disabled { opacity: 0.3; cursor: not-allowed; }
+
+        .archive-item {
+            background: rgba(255,255,255,0.07); padding: 12px 18px; border-radius: 12px;
+            margin-bottom: 8px; display: flex; justify-content: space-between; cursor: pointer; border: 1px solid var(--glass-border);
+        }
+        .archive-year { border-left: 5px solid var(--gold); background: linear-gradient(90deg, rgba(212,175,55,0.2), transparent); }
+
+        .overlay { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: var(--overlay-bg); display: flex; align-items: center; justify-content: center; z-index: 1000; backdrop-filter: blur(10px); }
+        .modal { background: linear-gradient(145deg, var(--emerald), #083d2f); border: 2px solid var(--gold); width: 85%; max-width: 380px; border-radius: 30px; padding: 40px 30px; text-align: center; box-shadow: 0 20px 50px rgba(0,0,0,0.6); }
+        .congrats-title { color: var(--gold); font-size: 1.8rem; margin-bottom: 15px; font-weight: 600; }
+        .congrats-sub { font-size: 1rem; color: white; opacity: 0.9; line-height: 1.6; margin-bottom: 25px; }
+    </style>
+</head>
+<body>
+    <div id="root"></div>
+
+    <script type="text/babel">
+        const { useState, useEffect } = React;
+        const PRAYERS = ['Sabah', 'Öğle', 'İkindi', 'Akşam', 'Yatsı', 'Vitr'];
+        const MONTHS = ['Ocak', 'Şubat', 'Mart', 'Nisan', 'Mayıs', 'Haziran', 'Temmuz', 'Ağustos', 'Eylül', 'Ekim', 'Kasım', 'Aralık'];
+        const STORAGE_KEY = 'kaza_v14_final';
+
+        const setFavicon = () => {
+            const svgIcon = `<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='%23d4af37'><path d='M12,7V3L2,12H5V21H9V15H15V21H19V12H22L12,7M12,10A2,2 0 0,1 14,12A2,2 0 0,1 12,14A2,2 0 0,1 10,12A2,2 0 0,1 12,10M21,19H19V17H21V19M21,15H19V13H21V15M21,11H19V9H21V11M5,19H3V17H5V19M5,15H3V13H5V15M5,11H3V9H5V11Z' /></svg>`;
+            document.getElementById('favicon').setAttribute('href', `data:image/svg+xml,${svgIcon}`);
+        };
+
+        const Logo = () => (
+            <div className="logo-container">
+                <svg className="logo-icon" viewBox="0 0 24 24"><path d="M12,7V3L2,12H5V21H9V15H15V21H19V12H22L12,7M12,10A2,2 0 0,1 14,12A2,2 0 0,1 12,14A2,2 0 0,1 10,12A2,2 0 0,1 12,10M21,19H19V17H21V19M21,15H19V13H21V15M21,11H19V9H21V11M5,19H3V17H5V19M5,15H3V13H5V15M5,11H3V9H5V11Z" /></svg>
+                <h1 className="logo-text">KAZA REHBERİ</h1>
+                <div className="logo-subtext">Manevi Yolculuk Takibi</div>
+            </div>
+        );
+
+        function App() {
+            const [range, setRange] = useState(null);
+            const [setup, setSetup] = useState({ startM: 0, startY: 2024, endM: 11, endY: 2025 });
+            const [selectedDate, setSelectedDate] = useState({ d: 1, m: 0, y: 2024 });
+            const [data, setData] = useState({});
+            const [archive, setArchive] = useState([]);
+            const [viewing, setViewing] = useState(null);
+            const [showFinalCelebration, setShowFinalCelebration] = useState(false);
+
+            useEffect(() => {
+                setFavicon();
+                const saved = localStorage.getItem(STORAGE_KEY);
+                if (saved) {
+                    const parsed = JSON.parse(saved);
+                    setData(parsed.data || {});
+                    setArchive(parsed.archive || []);
+                    setRange(parsed.range || null);
+                    if (parsed.range) setSelectedDate({ d: 1, m: parsed.range.startM, y: parsed.range.startY });
+                }
+            }, []);
+
+            useEffect(() => {
+                if (range) localStorage.setItem(STORAGE_KEY, JSON.stringify({ data, archive, range }));
+                // %100 kontrolü
+                if (range && stats.percent >= 100 && stats.total > 0) {
+                    setTimeout(() => setShowFinalCelebration(true), 1000);
+                }
+            }, [data, archive, range]);
+
+            const daysInMonth = (m, y) => new Date(y, m + 1, 0).getDate();
+            const totalDaysCount = range ? Math.ceil(Math.abs(new Date(range.endY, range.endM + 1, 0) - new Date(range.startY, range.startM, 1)) / (1000*60*60*24)) : 0;
+
+            const stats = (() => {
+                let done = 0;
+                archive.forEach(item => {
+                    if (item.type === 'day') done += 1;
+                    if (item.type === 'month') done += daysInMonth(item.m, item.y);
+                    if (item.type === 'year') done += 365;
+                });
+                const perc = totalDaysCount ? ((done / totalDaysCount) * 100).toFixed(1) : 0;
+                return { percent: parseFloat(perc), done, total: totalDaysCount };
+            })();
+
+            const isYearDone = (y) => archive.some(a => a.type === 'year' && a.y === y);
+            const isMonthDone = (m, y) => isYearDone(y) || archive.some(a => a.type === 'month' && a.m === m && a.y === y);
+            const isDayDone = (d, m, y) => isMonthDone(m, y) || archive.some(a => a.type === 'day' && a.d === d && a.m === m && a.y === y);
+
+            const handleReset = () => {
+                localStorage.removeItem(STORAGE_KEY);
+                window.location.reload();
+            };
+
+            const completeMonth = () => {
+                if (isMonthDone(selectedDate.m, selectedDate.y)) return;
+                const filtered = archive.filter(a => !(a.type === 'day' && a.m === selectedDate.m && a.y === selectedDate.y));
+                setArchive([{ label: `${MONTHS[selectedDate.m]} ${selectedDate.y}`, m: selectedDate.m, y: selectedDate.y, type: 'month', key: `m-${selectedDate.m}-${selectedDate.y}` }, ...filtered]);
+                let nextM = selectedDate.m + 1;
+                let nextY = selectedDate.y;
+                if (nextM > 11) { nextM = 0; nextY++; }
+                if (nextY <= range.endY) setSelectedDate({ d: 1, m: nextM, y: nextY });
+            };
+
+            if (!range) {
+                return (
+                    <div className="glass-card">
+                        <Logo />
+                        <h4 style={{textAlign:'center', color:'var(--gold)', marginBottom:'15px'}}>Kaza Borcu Aralığı</h4>
+                        <div className="selectors">
+                            <select value={setup.startM} onChange={e => setSetup({...setup, startM: Number(e.target.value)})}>{MONTHS.map((m, i) => <option key={i} value={i}>{m}</option>)}</select>
+                            <select value={setup.startY} onChange={e => setSetup({...setup, startY: Number(e.target.value)})}>{[...Array(50)].map((_, i) => <option key={i} value={2026-i}>{2026-i}</option>)}</select>
+                        </div>
+                        <div className="selectors">
+                            <select value={setup.endM} onChange={e => setSetup({...setup, endM: Number(e.target.value)})}>{MONTHS.map((m, i) => <option key={i} value={i}>{m}</option>)}</select>
+                            <select value={setup.endY} onChange={e => setSetup({...setup, endY: Number(e.target.value)})}>{[...Array(50)].map((_, i) => <option key={i} value={2026-i}>{2026-i}</option>)}</select>
+                        </div>
+                        <button className="btn btn-gold" onClick={() => {setRange(setup); setSelectedDate({d:1, m:setup.startM, y:setup.startY});}}>SİSTEMİ KUR</button>
+                    </div>
+                );
+            }
+
+            return (
+                <div className="glass-card">
+                    <Logo />
+                    <div className="progress-section">
+                        <div className="progress-label"><span>%{stats.percent} Tamamlandı</span><span>{stats.done}/{stats.total} Gün</span></div>
+                        <div className="bar-bg"><div className="bar-fill" style={{width: `${stats.percent}%`}}></div></div>
+                    </div>
+
+                    <div className="selectors">
+                        <select value={selectedDate.y} onChange={e => setSelectedDate({...selectedDate, y: Number(e.target.value)})}>
+                            {Array.from({length: range.endY - range.startY + 1}, (_, i) => range.startY + i).map(y => <option key={y} value={y}>{y}</option>)}
+                        </select>
+                        <select value={selectedDate.m} onChange={e => setSelectedDate({...selectedDate, m: Number(e.target.value)})}>
+                            {MONTHS.map((m, i) => <option key={i} value={i}>{m}</option>)}
+                        </select>
+                        <select value={selectedDate.d} onChange={e => setSelectedDate({...selectedDate, d: Number(e.target.value)})}>
+                            {[...Array(daysInMonth(selectedDate.m, selectedDate.y))].map((_, i) => <option key={i+1} value={i+1}>{i+1}</option>)}
+                        </select>
+                    </div>
+
+                    <div style={{display:'flex', gap:'10px', marginBottom:'10px'}}>
+                        <button className="btn btn-outline" disabled={isMonthDone(selectedDate.m, selectedDate.y)} onClick={completeMonth}>Ayı Bitir</button>
+                        <button className="btn btn-outline" disabled={isYearDone(selectedDate.y)} onClick={() => {
+                            const filtered = archive.filter(a => a.y !== selectedDate.y);
+                            setArchive([{ label: `${selectedDate.y} Yılı 🏆`, y: selectedDate.y, type: 'year', key: `y-${selectedDate.y}` }, ...filtered]);
+                        }}>Yılı Bitir</button>
+                    </div>
+
+                    {PRAYERS.map(p => {
+                        const dKey = `${selectedDate.d}-${selectedDate.m}-${selectedDate.y}`;
+                        const disabled = isDayDone(selectedDate.d, selectedDate.m, selectedDate.y);
+                        return (
+                            <div key={p} className={`prayer-row ${data[dKey]?.[p] || disabled ? 'is-checked' : ''}`} 
+                                onClick={() => !disabled && setData({...data, [dKey]:{...(data[dKey]||{}), [p]:!data[dKey]?.[p]}})}>
+                                <div className="custom-check"></div><span>{p} Namazı</span>
+                            </div>
+                        );
+                    })}
+
+                    <button className="btn btn-gold" disabled={isDayDone(selectedDate.d, selectedDate.m, selectedDate.y)} onClick={() => setArchive([{ label: `${selectedDate.d} ${MONTHS[selectedDate.m]} ${selectedDate.y}`, d: selectedDate.d, m: selectedDate.m, y: selectedDate.y, type: 'day', key: `d-${selectedDate.d}-${selectedDate.m}-${selectedDate.y}` }, ...archive])}>GÜNÜ TAMAMLA</button>
+
+                    <h4 style={{color:'var(--gold)', margin:'25px 0 10px 0'}}>Tamamlananlar</h4>
+                    <div style={{maxHeight:'160px', overflowY:'auto'}}>
+                        {archive.map((rec, i) => (
+                            <div key={i} className={`archive-item ${rec.type==='year'?'archive-year':''}`} onClick={() => setViewing(rec)}>
+                                <span>{rec.label}</span><span>{rec.type==='year'?'👑':'✓'}</span>
+                            </div>
+                        ))}
+                    </div>
+
+                    <button className="btn btn-gold" style={{background:'transparent', color:'var(--danger)', border:'1px solid rgba(239, 68, 68, 0.3)', fontSize:'11px', marginTop:'25px'}} onClick={() => confirm("Tüm verileriniz silinecek. Emin misiniz?") && handleReset()}>SİSTEMİ SIFIRLA</button>
+
+                    {/* HEDEF TAMAMLANDI POPUP */}
+                    {showFinalCelebration && (
+                        <div className="overlay">
+                            <div className="modal">
+                                <div style={{fontSize:'4rem', marginBottom:'10px'}}>🎉</div>
+                                <div className="congrats-title">MÜJDELER OLSUN!</div>
+                                <div className="congrats-sub">
+                                    Belirlediğin tüm kaza borçlarını başarıyla tamamladın. Rabbim kabul eylesin.
+                                    <br/><br/>
+                                    <strong>Yeni bir kaza hesaplaması yapmak ister misin?</strong>
+                                </div>
+                                <button className="btn btn-gold" onClick={handleReset}>EVET, YENİ HEDEF BELİRLE</button>
+                                <button className="btn btn-outline" style={{marginTop:'10px'}} onClick={() => setShowFinalCelebration(false)}>ŞİMDİLİK DURSUN</button>
+                            </div>
+                        </div>
+                    )}
+
+                    {/* KAYIT DETAY POPUP */}
+                    {viewing && (
+                        <div className="overlay" onClick={() => setViewing(null)}>
+                            <div className="modal" onClick={e => e.stopPropagation()}>
+                                <div className="congrats-title">{viewing.type==='year'?'🏆':'✨'}</div>
+                                <div style={{color:'white', opacity:0.9, marginBottom:'20px'}}>{viewing.label} Başarıyla Tamamlandı.</div>
+                                <button className="btn btn-gold" onClick={() => setViewing(null)}>KAPAT</button>
+                            </div>
+                        </div>
+                    )}
+                </div>
+            );
+        }
+
+        const root = ReactDOM.createRoot(document.getElementById('root'));
+        root.render(<App />);
+    </script>
+</body>
+</html>
