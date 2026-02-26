@@ -2,8 +2,16 @@
 <html lang="tr">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <title>Kaza Rehberi - Zafer</title>
+    
+    <link rel="apple-touch-icon" href="https://img.icons8.com/fluency-systems-filled/512/d4af37/mosque.png">
+    <link rel="icon" type="image/png" href="https://img.icons8.com/fluency-systems-filled/96/d4af37/mosque.png">
+    
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <meta name="apple-mobile-web-app-title" content="KazaRehberi">
+
     <link id="favicon" rel="icon" type="image/svg+xml" href="">
     <script src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
     <script src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
@@ -25,6 +33,7 @@
             background: linear-gradient(135deg, var(--deep-bg), #0a5c48);
             background-attachment: fixed;
             color: white; margin: 0; padding: 20px; display: flex; justify-content: center; min-height: 100vh;
+            -webkit-tap-highlight-color: transparent;
         }
 
         #root { width: 100%; max-width: 500px; }
@@ -122,7 +131,6 @@
 
             useEffect(() => {
                 if (range) localStorage.setItem(STORAGE_KEY, JSON.stringify({ data, archive, range }));
-                // %100 kontrolü
                 if (range && stats.percent >= 100 && stats.total > 0) {
                     setTimeout(() => setShowFinalCelebration(true), 1000);
                 }
@@ -147,8 +155,10 @@
             const isDayDone = (d, m, y) => isMonthDone(m, y) || archive.some(a => a.type === 'day' && a.d === d && a.m === m && a.y === y);
 
             const handleReset = () => {
-                localStorage.removeItem(STORAGE_KEY);
-                window.location.reload();
+                if(confirm("Tüm verileriniz silinecek. Emin misiniz?")) {
+                    localStorage.removeItem(STORAGE_KEY);
+                    window.location.reload();
+                }
             };
 
             const completeMonth = () => {
@@ -229,26 +239,20 @@
                         ))}
                     </div>
 
-                    <button className="btn btn-gold" style={{background:'transparent', color:'var(--danger)', border:'1px solid rgba(239, 68, 68, 0.3)', fontSize:'11px', marginTop:'25px'}} onClick={() => confirm("Tüm verileriniz silinecek. Emin misiniz?") && handleReset()}>SİSTEMİ SIFIRLA</button>
+                    <button className="btn btn-gold" style={{background:'transparent', color:'var(--danger)', border:'1px solid rgba(239, 68, 68, 0.3)', fontSize:'11px', marginTop:'25px'}} onClick={handleReset}>SİSTEMİ SIFIRLA</button>
 
-                    {/* HEDEF TAMAMLANDI POPUP */}
                     {showFinalCelebration && (
                         <div className="overlay">
                             <div className="modal">
                                 <div style={{fontSize:'4rem', marginBottom:'10px'}}>🎉</div>
                                 <div className="congrats-title">MÜJDELER OLSUN!</div>
-                                <div className="congrats-sub">
-                                    Belirlediğin tüm kaza borçlarını başarıyla tamamladın. Rabbim kabul eylesin.
-                                    <br/><br/>
-                                    <strong>Yeni bir kaza hesaplaması yapmak ister misin?</strong>
-                                </div>
+                                <div className="congrats-sub">Belirlediğin tüm kaza borçlarını başarıyla tamamladın. Rabbim kabul eylesin.</div>
                                 <button className="btn btn-gold" onClick={handleReset}>EVET, YENİ HEDEF BELİRLE</button>
                                 <button className="btn btn-outline" style={{marginTop:'10px'}} onClick={() => setShowFinalCelebration(false)}>ŞİMDİLİK DURSUN</button>
                             </div>
                         </div>
                     )}
 
-                    {/* KAYIT DETAY POPUP */}
                     {viewing && (
                         <div className="overlay" onClick={() => setViewing(null)}>
                             <div className="modal" onClick={e => e.stopPropagation()}>
