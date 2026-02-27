@@ -28,12 +28,26 @@
             --danger: #ef4444;
         }
 
+        html, body {
+            margin: 0;
+            padding: 0;
+            width: 100%;
+            height: 100%;
+            background: var(--deep-bg);
+        }
+
         body {
             font-family: 'Montserrat', sans-serif;
             background: linear-gradient(135deg, var(--deep-bg), #0a5c48);
             background-attachment: fixed;
-            color: white; margin: 0; padding: 20px; display: flex; justify-content: center; min-height: 100vh;
+            color: white; 
+            display: flex; 
+            justify-content: center; 
+            min-height: 100vh;
+            padding: 20px;
+            box-sizing: border-box;
             -webkit-tap-highlight-color: transparent;
+            overflow-x: hidden;
         }
 
         #root { width: 100%; max-width: 500px; }
@@ -74,6 +88,7 @@
         .btn { width: 100%; padding: 14px; border-radius: 15px; font-weight: 600; border: none; cursor: pointer; margin-top: 10px; transition: 0.3s; }
         .btn-gold { background: var(--gold); color: var(--emerald); letter-spacing: 1px; }
         .btn-outline { background: transparent; color: white; border: 1px solid rgba(255,255,255,0.3); font-size: 12px; }
+        .btn-share { background: #25d366; color: white; margin-top: 15px; }
         .btn:disabled { opacity: 0.3; cursor: not-allowed; }
 
         .archive-item {
@@ -146,16 +161,12 @@
 
             const stats = (() => {
                 if (!range) return { percent: 0, done: 0, total: 0 };
-                
-                // Toplam gün sayısını daha kesin hesapla
                 const startDate = new Date(range.startY, range.startM, 1);
                 const endDate = new Date(range.endY, range.endM + 1, 0);
                 const totalDaysCount = Math.round((endDate - startDate) / (1000 * 60 * 60 * 24)) + 1;
-
                 let done = 0;
                 let curr = new Date(range.startY, range.startM, 1);
                 const endLoop = new Date(range.endY, range.endM, 1);
-                
                 while (curr <= endLoop) {
                     const m = curr.getMonth();
                     const y = curr.getFullYear();
@@ -168,13 +179,20 @@
                     }
                     curr.setMonth(curr.getMonth() + 1);
                 }
-
-                // Hedefi aşmasını engelle
                 const finalDone = Math.min(done, totalDaysCount);
                 const perc = totalDaysCount ? ((finalDone / totalDaysCount) * 100).toFixed(1) : 0;
-                
                 return { percent: Math.min(parseFloat(perc), 100), done: finalDone, total: totalDaysCount };
             })();
+
+            const handleShare = () => {
+                const text = `Müjdeler olsun! Manevi yolculuğumda bir hedefime daha ulaştım. Siz de kendi hedeflerinize ulaşmak ve kaza namazlarınızı düzenli takip etmek için şimdi başlayın: ${window.location.href}`;
+                if (navigator.share) {
+                    navigator.share({ title: 'Kaza Rehberi Başarısı', text: text, url: window.location.href });
+                } else {
+                    navigator.clipboard.writeText(text);
+                    alert("Mesaj kopyalandı! İstediğiniz yerde paylaşabilirsiniz.");
+                }
+            };
 
             const handleReset = () => {
                 if(confirm("Tüm verileriniz silinecek. Emin misiniz?")) {
@@ -285,8 +303,8 @@
                                 <div style={{fontSize:'4rem', marginBottom:'10px'}}>🎉</div>
                                 <div className="congrats-title">MÜJDELER OLSUN!</div>
                                 <div className="congrats-sub">Belirlediğin tüm kaza borçlarını başarıyla tamamladın. Rabbim kabul eylesin.</div>
-                                <button className="btn btn-gold" onClick={handleReset}>EVET, YENİ HEDEF BELİRLE</button>
-                                <button className="btn btn-outline" style={{marginTop:'10px'}} onClick={() => setShowFinalCelebration(false)}>ŞİMDİLİK DURSUN</button>
+                                <button className="btn btn-gold" onClick={handleShare}>HEDEFİMİ PAYLAŞ 🚀</button>
+                                <button className="btn btn-outline" style={{marginTop:'10px'}} onClick={() => setShowFinalCelebration(false)}>KAPAT</button>
                             </div>
                         </div>
                     )}
@@ -296,7 +314,8 @@
                             <div className="modal" onClick={e => e.stopPropagation()}>
                                 <div className="congrats-title">{viewing.type==='year'?'🏆':'✨'}</div>
                                 <div style={{color:'white', opacity:0.9, marginBottom:'20px'}}>{viewing.label} Başarıyla Tamamlandı.</div>
-                                <button className="btn btn-gold" onClick={() => setViewing(null)}>KAPAT</button>
+                                <button className="btn btn-gold" onClick={handleShare}>BAŞARIMI PAYLAŞ</button>
+                                <button className="btn btn-outline" style={{marginTop:'10px'}} onClick={() => setViewing(null)}>KAPAT</button>
                             </div>
                         </div>
                     )}
