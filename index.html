@@ -60,11 +60,13 @@
             background: rgba(255,255,255,0.1); color: white; outline: none; cursor: pointer; font-size: 13px;
         }
         select option { background: var(--emerald); }
+        select:disabled { opacity: 0.4; cursor: not-allowed; }
 
         .prayer-row {
             display: flex; align-items: center; padding: 12px; background: rgba(255,255,255,0.05);
             margin-bottom: 8px; border-radius: 12px; cursor: pointer;
         }
+        .prayer-row.disabled-row { opacity: 0.6; cursor: not-allowed; pointer-events: none; }
         .custom-check { width: 20px; height: 20px; border: 2px solid var(--gold); border-radius: 5px; margin-right: 12px; position: relative; }
         .is-checked .custom-check { background: var(--gold); }
         .is-checked .custom-check::after { content: '✓'; position: absolute; color: var(--emerald); font-weight: bold; font-size: 12px; left: 3px; top: -1px; }
@@ -137,22 +139,42 @@
             }, [data, archive, range]);
 
             const daysInMonth = (m, y) => new Date(y, m + 1, 0).getDate();
-            const totalDaysCount = range ? Math.ceil(Math.abs(new Date(range.endY, range.endM + 1, 0) - new Date(range.startY, range.startM, 1)) / (1000*60*60*24)) : 0;
-
-            const stats = (() => {
-                let done = 0;
-                archive.forEach(item => {
-                    if (item.type === 'day') done += 1;
-                    if (item.type === 'month') done += daysInMonth(item.m, item.y);
-                    if (item.type === 'year') done += 365;
-                });
-                const perc = totalDaysCount ? ((done / totalDaysCount) * 100).toFixed(1) : 0;
-                return { percent: parseFloat(perc), done, total: totalDaysCount };
-            })();
-
+            
             const isYearDone = (y) => archive.some(a => a.type === 'year' && a.y === y);
             const isMonthDone = (m, y) => isYearDone(y) || archive.some(a => a.type === 'month' && a.m === m && a.y === y);
             const isDayDone = (d, m, y) => isMonthDone(m, y) || archive.some(a => a.type === 'day' && a.d === d && a.m === m && a.y === y);
+
+            const stats = (() => {
+                if (!range) return { percent: 0, done: 0, total: 0 };
+                
+                // Toplam gün sayısını daha kesin hesapla
+                const startDate = new Date(range.startY, range.startM, 1);
+                const endDate = new Date(range.endY, range.endM + 1, 0);
+                const totalDaysCount = Math.round((endDate - startDate) / (1000 * 60 * 60 * 24)) + 1;
+
+                let done = 0;
+                let curr = new Date(range.startY, range.startM, 1);
+                const endLoop = new Date(range.endY, range.endM, 1);
+                
+                while (curr <= endLoop) {
+                    const m = curr.getMonth();
+                    const y = curr.getFullYear();
+                    if (isMonthDone(m, y)) {
+                        done += daysInMonth(m, y);
+                    } else {
+                        for (let d = 1; d <= daysInMonth(m, y); d++) {
+                            if (isDayDone(d, m, y)) done++;
+                        }
+                    }
+                    curr.setMonth(curr.getMonth() + 1);
+                }
+
+                // Hedefi aşmasını engelle
+                const finalDone = Math.min(done, totalDaysCount);
+                const perc = totalDaysCount ? ((finalDone / totalDaysCount) * 100).toFixed(1) : 0;
+                
+                return { percent: Math.min(parseFloat(perc), 100), done: finalDone, total: totalDaysCount };
+            })();
 
             const handleReset = () => {
                 if(confirm("Tüm verileriniz silinecek. Emin misiniz?")) {
@@ -165,10 +187,6 @@
                 if (isMonthDone(selectedDate.m, selectedDate.y)) return;
                 const filtered = archive.filter(a => !(a.type === 'day' && a.m === selectedDate.m && a.y === selectedDate.y));
                 setArchive([{ label: `${MONTHS[selectedDate.m]} ${selectedDate.y}`, m: selectedDate.m, y: selectedDate.y, type: 'month', key: `m-${selectedDate.m}-${selectedDate.y}` }, ...filtered]);
-                let nextM = selectedDate.m + 1;
-                let nextY = selectedDate.y;
-                if (nextM > 11) { nextM = 0; nextY++; }
-                if (nextY <= range.endY) setSelectedDate({ d: 1, m: nextM, y: nextY });
             };
 
             if (!range) {
@@ -189,6 +207,15 @@
                 );
             }
 
+            const availableMonths = MONTHS.map((m, i) => ({ name: m, index: i })).filter(m => {
+                if (selectedDate.y === range.startY && m.index < range.startM) return false;
+                if (selectedDate.y === range.endY && m.index > range.endM) return false;
+                return true;
+            });
+
+            const currentDayLocked = isDayDone(selectedDate.d, selectedDate.m, selectedDate.y);
+            const currentMonthLocked = isMonthDone(selectedDate.m, selectedDate.y);
+
             return (
                 <div className="glass-card">
                     <Logo />
@@ -198,19 +225,29 @@
                     </div>
 
                     <div className="selectors">
-                        <select value={selectedDate.y} onChange={e => setSelectedDate({...selectedDate, y: Number(e.target.value)})}>
-                            {Array.from({length: range.endY - range.startY + 1}, (_, i) => range.startY + i).map(y => <option key={y} value={y}>{y}</option>)}
+                        <select value={selectedDate.y} onChange={e => setSelectedDate({...selectedDate, y: Number(e.target.value), d: 1})}>
+                            {Array.from({length: Math.abs(range.endY - range.startY) + 1}, (_, i) => Math.min(range.startY, range.endY) + i).map(y => <option key={y} value={y}>{y}</option>)}
                         </select>
-                        <select value={selectedDate.m} onChange={e => setSelectedDate({...selectedDate, m: Number(e.target.value)})}>
-                            {MONTHS.map((m, i) => <option key={i} value={i}>{m}</option>)}
+
+                        <select value={selectedDate.m} onChange={e => setSelectedDate({...selectedDate, m: Number(e.target.value), d: 1})}>
+                            {availableMonths.map(m => <option key={m.index} value={m.index}>{m.name}</option>)}
                         </select>
-                        <select value={selectedDate.d} onChange={e => setSelectedDate({...selectedDate, d: Number(e.target.value)})}>
-                            {[...Array(daysInMonth(selectedDate.m, selectedDate.y))].map((_, i) => <option key={i+1} value={i+1}>{i+1}</option>)}
+
+                        <select 
+                            value={selectedDate.d} 
+                            disabled={currentMonthLocked}
+                            onChange={e => setSelectedDate({...selectedDate, d: Number(e.target.value)})}
+                        >
+                            {[...Array(daysInMonth(selectedDate.m, selectedDate.y))].map((_, i) => {
+                                const dayNum = i + 1;
+                                const dayDone = isDayDone(dayNum, selectedDate.m, selectedDate.y);
+                                return <option key={dayNum} value={dayNum}>{dayNum} {dayDone ? '✓' : ''}</option>
+                            })}
                         </select>
                     </div>
 
                     <div style={{display:'flex', gap:'10px', marginBottom:'10px'}}>
-                        <button className="btn btn-outline" disabled={isMonthDone(selectedDate.m, selectedDate.y)} onClick={completeMonth}>Ayı Bitir</button>
+                        <button className="btn btn-outline" disabled={currentMonthLocked} onClick={completeMonth}>Ayı Bitir</button>
                         <button className="btn btn-outline" disabled={isYearDone(selectedDate.y)} onClick={() => {
                             const filtered = archive.filter(a => a.y !== selectedDate.y);
                             setArchive([{ label: `${selectedDate.y} Yılı 🏆`, y: selectedDate.y, type: 'year', key: `y-${selectedDate.y}` }, ...filtered]);
@@ -219,16 +256,17 @@
 
                     {PRAYERS.map(p => {
                         const dKey = `${selectedDate.d}-${selectedDate.m}-${selectedDate.y}`;
-                        const disabled = isDayDone(selectedDate.d, selectedDate.m, selectedDate.y);
+                        const checked = data[dKey]?.[p] || currentDayLocked;
+                        
                         return (
-                            <div key={p} className={`prayer-row ${data[dKey]?.[p] || disabled ? 'is-checked' : ''}`} 
-                                onClick={() => !disabled && setData({...data, [dKey]:{...(data[dKey]||{}), [p]:!data[dKey]?.[p]}})}>
+                            <div key={p} className={`prayer-row ${checked ? 'is-checked' : ''} ${currentDayLocked ? 'disabled-row' : ''}`} 
+                                onClick={() => !currentDayLocked && setData({...data, [dKey]:{...(data[dKey]||{}), [p]:!data[dKey]?.[p]}})}>
                                 <div className="custom-check"></div><span>{p} Namazı</span>
                             </div>
                         );
                     })}
 
-                    <button className="btn btn-gold" disabled={isDayDone(selectedDate.d, selectedDate.m, selectedDate.y)} onClick={() => setArchive([{ label: `${selectedDate.d} ${MONTHS[selectedDate.m]} ${selectedDate.y}`, d: selectedDate.d, m: selectedDate.m, y: selectedDate.y, type: 'day', key: `d-${selectedDate.d}-${selectedDate.m}-${selectedDate.y}` }, ...archive])}>GÜNÜ TAMAMLA</button>
+                    <button className="btn btn-gold" disabled={currentDayLocked} onClick={() => setArchive([{ label: `${selectedDate.d} ${MONTHS[selectedDate.m]} ${selectedDate.y}`, d: selectedDate.d, m: selectedDate.m, y: selectedDate.y, type: 'day', key: `d-${selectedDate.d}-${selectedDate.m}-${selectedDate.y}` }, ...archive])}>GÜNÜ TAMAMLA</button>
 
                     <h4 style={{color:'var(--gold)', margin:'25px 0 10px 0'}}>Tamamlananlar</h4>
                     <div style={{maxHeight:'160px', overflowY:'auto'}}>
