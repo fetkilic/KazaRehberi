@@ -187,7 +187,7 @@
             const handleShare = () => {
                 const text = `Müjdeler olsun! Manevi yolculuğumda bir hedefime daha ulaştım. Siz de kendi hedeflerinize ulaşmak ve kaza namazlarınızı düzenli takip etmek için şimdi başlayın: ${window.location.href}`;
                 if (navigator.share) {
-                    navigator.share({ title: 'Kaza Rehberi Başarısı', text: text, url: window.location.href });
+                    navigator.share({ title: 'Kaza Rehberi', text: text });
                 } else {
                     navigator.clipboard.writeText(text);
                     alert("Mesaj kopyalandı! İstediğiniz yerde paylaşabilirsiniz.");
