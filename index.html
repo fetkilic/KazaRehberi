@@ -123,7 +123,7 @@
                 <svg className="logo-icon" viewBox="0 0 24 24"><path d="M12,7V3L2,12H5V21H9V15H15V21H19V12H22L12,7M12,10A2,2 0 0,1 14,12A2,2 0 0,1 12,14A2,2 0 0,1 10,12A2,2 0 0,1 12,10M21,19H19V17H21V19M21,15H19V13H21V15M21,11H19V9H21V11M5,19H3V17H5V19M5,15H3V13H5V15M5,11H3V9H5V11Z" /></svg>
                 <div>
                     <h1 className="logo-text">KAZA REHBERİ</h1>
-                    <span className="version-badge">1.7</span>
+                    <span className="version-badge">1.9</span>
                 </div>
                 <div className="logo-subtext">Manevi Yolculuk Takibi</div>
             </div>
@@ -149,49 +149,38 @@
                 const saved = localStorage.getItem(STORAGE_KEY);
                 if (saved) {
                     const parsed = JSON.parse(saved);
-                    const currentData = parsed.data || {};
-                    const currentArchive = parsed.archive || [];
-                    const currentRange = parsed.range || null;
-
-                    setData(currentData);
-                    setArchive(currentArchive);
-                    setRange(currentRange);
+                    setData(parsed.data || {});
+                    setArchive(parsed.archive || []);
+                    setRange(parsed.range || null);
                     
-                    if (currentRange) {
+                    if (parsed.range) {
                         let foundDate = null;
+                        const currentData = parsed.data || {};
+                        const currentArchive = parsed.archive || [];
                         
-                        // 1. SCAN FOR PARTIALLY CHECKED DAYS FIRST
+                        // 1. Partial check scan
                         for (const key in currentData) {
                             const [d, m, y] = key.split('-').map(Number);
-                            const hasCheck = Object.values(currentData[key]).some(v => v === true);
-                            if (hasCheck && !isDayDoneInternal(d, m, y, currentArchive)) {
-                                foundDate = { d, m, y };
-                                break;
+                            if (Object.values(currentData[key]).some(v => v === true) && !isDayDoneInternal(d, m, y, currentArchive)) {
+                                foundDate = { d, m, y }; break;
                             }
                         }
-
-                        // 2. IF NONE, FIND FIRST UNFINISHED DAY
+                        // 2. First unfinished day scan
                         if (!foundDate) {
-                            let check = new Date(currentRange.startY, currentRange.startM, 1);
-                            const end = new Date(currentRange.endY, currentRange.endM, 1);
+                            let check = new Date(parsed.range.startY, parsed.range.startM, 1);
+                            const end = new Date(parsed.range.endY, parsed.range.endM, 1);
                             while (check <= end && !foundDate) {
-                                const cy = check.getFullYear();
-                                const cm = check.getMonth();
+                                const cy = check.getFullYear(), cm = check.getMonth();
                                 if (!isMonthDoneInternal(cm, cy, currentArchive)) {
-                                    const dMax = daysInMonth(cm, cy);
-                                    for (let cd = 1; cd <= dMax; cd++) {
-                                        if (!isDayDoneInternal(cd, cm, cy, currentArchive)) {
-                                            foundDate = { d: cd, m: cm, y: cy };
-                                            break;
-                                        }
+                                    for (let cd = 1; cd <= daysInMonth(cm, cy); cd++) {
+                                        if (!isDayDoneInternal(cd, cm, cy, currentArchive)) { foundDate = { d: cd, m: cm, y: cy }; break; }
                                     }
                                 }
                                 check.setMonth(check.getMonth() + 1);
                             }
                         }
-                        
                         if (foundDate) setSelectedDate(foundDate);
-                        else setSelectedDate({ d: 1, m: currentRange.startM, y: currentRange.startY });
+                        else setSelectedDate({ d: 1, m: parsed.range.startM, y: parsed.range.startY });
                     }
                 }
             }, []);
@@ -208,9 +197,9 @@
 
             const stats = (() => {
                 if (!range) return { percent: 0, done: 0, total: 0 };
-                const startDate = new Date(range.startY, range.startM, 1);
-                const endDate = new Date(range.endY, range.endM + 1, 0);
-                const totalDaysCount = Math.round((endDate - startDate) / (1000 * 60 * 60 * 24)) + 1;
+                const start = new Date(range.startY, range.startM, 1);
+                const end = new Date(range.endY, range.endM + 1, 0);
+                const totalDaysCount = Math.round((end - start) / (1000 * 60 * 60 * 24)) + 1;
                 let done = 0;
                 let curr = new Date(range.startY, range.startM, 1);
                 while (curr <= new Date(range.endY, range.endM, 1)) {
@@ -223,21 +212,30 @@
                 return { percent: totalDaysCount ? ((finalDone / totalDaysCount) * 100).toFixed(1) : 0, done: finalDone, total: totalDaysCount };
             })();
 
+            const handleShare = (msg) => {
+                if (navigator.share) navigator.share({ title: 'Kaza Rehberi', text: msg });
+                else { navigator.clipboard.writeText(msg); alert("Kopyalandı!"); }
+            };
+
+            const handleReset = () => { 
+                if(confirm("DİKKAT: Tüm kayıtlı kaza namazı verileriniz ve arşiviniz kalıcı olarak silinecek. Emin misiniz?")) { 
+                    localStorage.removeItem(STORAGE_KEY); 
+                    window.location.reload(); 
+                } 
+            };
+
             const findNextOpenDate = (currentY, currentM) => {
                 let checkDate = new Date(currentY, currentM, 1);
                 const endDate = new Date(range.endY, range.endM, 1);
                 while (checkDate <= endDate) {
                     const y = checkDate.getFullYear(), m = checkDate.getMonth();
-                    if (!isMonthDone(m, y)) return { y, m };
+                    if (!isMonthDone(m, y)) return { y, m, d: 1 };
                     checkDate.setMonth(checkDate.getMonth() + 1);
                 }
-                return { y: currentY, m: currentM };
+                return { y: range.startY, m: range.startM, d: 1 };
             };
 
-            const triggerSuccess = (msg) => {
-                setInterimSuccess(msg);
-                setTimeout(() => setInterimSuccess(null), 2000);
-            };
+            const triggerSuccess = (msg) => { setInterimSuccess(msg); setTimeout(() => setInterimSuccess(null), 2000); };
 
             const completeDay = () => {
                 const newArchive = [{ label: `${selectedDate.d} ${MONTHS[selectedDate.m]} ${selectedDate.y}`, d: selectedDate.d, m: selectedDate.m, y: selectedDate.y, type: 'day', key: `d-${selectedDate.d}-${selectedDate.m}-${selectedDate.y}` }, ...archive];
@@ -245,28 +243,23 @@
                 triggerSuccess(`${selectedDate.d} ${MONTHS[selectedDate.m]} tamamlandı!`);
                 const maxDays = daysInMonth(selectedDate.m, selectedDate.y);
                 if (selectedDate.d < maxDays) setSelectedDate(prev => ({ ...prev, d: prev.d + 1 }));
-                else {
-                    const next = findNextOpenDate(selectedDate.y, selectedDate.m + 1);
-                    setSelectedDate({ d: 1, m: next.m, y: next.y });
-                }
+                else setSelectedDate(findNextOpenDate(selectedDate.y, selectedDate.m + 1));
             };
 
             const completeMonth = () => {
                 if (isMonthDone(selectedDate.m, selectedDate.y)) return;
                 const filtered = archive.filter(a => !(a.type === 'day' && a.m === selectedDate.m && a.y === selectedDate.y));
                 setArchive([{ label: `${MONTHS[selectedDate.m]} ${selectedDate.y}`, m: selectedDate.m, y: selectedDate.y, type: 'month', key: `m-${selectedDate.m}-${selectedDate.y}` }, ...filtered]);
-                triggerSuccess(`${MONTHS[selectedDate.m]} ayı başarıyla bitti!`);
-                const next = findNextOpenDate(selectedDate.y, selectedDate.m + 1);
-                setSelectedDate({ d: 1, m: next.m, y: next.y });
+                triggerSuccess(`${MONTHS[selectedDate.m]} ayı bitti!`);
+                setSelectedDate(findNextOpenDate(selectedDate.y, selectedDate.m + 1));
             };
 
             const completeYear = () => {
                 if (isYearDone(selectedDate.y)) return;
                 const filtered = archive.filter(a => a.y !== selectedDate.y);
                 setArchive([{ label: `${selectedDate.y} Yılı 🏆`, y: selectedDate.y, type: 'year', key: `y-${selectedDate.y}` }, ...filtered]);
-                triggerSuccess(`${selectedDate.y} yılı devredildi! Maşallah.`);
-                const next = findNextOpenDate(selectedDate.y + 1, 0);
-                setSelectedDate({ d: 1, m: next.m, y: next.y });
+                triggerSuccess(`${selectedDate.y} yılı bitti! Maşallah.`);
+                setSelectedDate(findNextOpenDate(selectedDate.y + 1, 0));
             };
 
             if (!range) return (
@@ -285,15 +278,6 @@
                 </div>
             );
 
-            const availableMonths = MONTHS.map((m, i) => ({ name: m, index: i })).filter(m => {
-                if (selectedDate.y === range.startY && m.index < range.startM) return false;
-                if (selectedDate.y === range.endY && m.index > range.endM) return false;
-                return true;
-            });
-
-            const currentDayLocked = isDayDone(selectedDate.d, selectedDate.m, selectedDate.y);
-            const currentMonthLocked = isMonthDone(selectedDate.m, selectedDate.y);
-
             return (
                 <div className="glass-card">
                     <Logo />
@@ -307,34 +291,33 @@
                             {Array.from({length: Math.abs(range.endY - range.startY) + 1}, (_, i) => Math.min(range.startY, range.endY) + i).map(y => <option key={y} value={y}>{y}</option>)}
                         </select>
                         <select value={selectedDate.m} onChange={e => setSelectedDate({...selectedDate, m: Number(e.target.value), d: 1})}>
-                            {availableMonths.map(m => <option key={m.index} value={m.index}>{m.name}</option>)}
+                            {MONTHS.map((m, i) => ({ name: m, index: i }))
+                                .filter(m => !(selectedDate.y === range.startY && m.index < range.startM) && !(selectedDate.y === range.endY && m.index > range.endM))
+                                .map(m => <option key={m.index} value={m.index}>{m.name}</option>)}
                         </select>
-                        <select value={selectedDate.d} disabled={currentMonthLocked} onChange={e => setSelectedDate({...selectedDate, d: Number(e.target.value)})}>
-                            {[...Array(daysInMonth(selectedDate.m, selectedDate.y))].map((_, i) => {
-                                const dNum = i + 1;
-                                const isD = isDayDone(dNum, selectedDate.m, selectedDate.y);
-                                return <option key={dNum} value={dNum}>{dNum} {isD ? '✓' : ''}</option>
-                            })}
+                        <select value={selectedDate.d} disabled={isMonthDone(selectedDate.m, selectedDate.y)} onChange={e => setSelectedDate({...selectedDate, d: Number(e.target.value)})}>
+                            {[...Array(daysInMonth(selectedDate.m, selectedDate.y))].map((_, i) => <option key={i+1} value={i+1}>{i+1} {isDayDone(i+1, selectedDate.m, selectedDate.y) ? '✓' : ''}</option>)}
                         </select>
                     </div>
 
                     <div style={{display:'flex', gap:'10px', marginBottom:'10px'}}>
-                        <button className="btn btn-outline" disabled={currentMonthLocked} onClick={completeMonth}>Ayı Bitir</button>
+                        <button className="btn btn-outline" disabled={isMonthDone(selectedDate.m, selectedDate.y)} onClick={completeMonth}>Ayı Bitir</button>
                         <button className="btn btn-outline" disabled={isYearDone(selectedDate.y)} onClick={completeYear}>Yılı Bitir</button>
                     </div>
 
                     {PRAYERS.map(p => {
                         const dKey = `${selectedDate.d}-${selectedDate.m}-${selectedDate.y}`;
-                        const chk = data[dKey]?.[p] || currentDayLocked;
+                        const isDone = isDayDone(selectedDate.d, selectedDate.m, selectedDate.y);
+                        const chk = data[dKey]?.[p] || isDone;
                         return (
-                            <div key={p} className={`prayer-row ${chk ? 'is-checked' : ''} ${currentDayLocked ? 'disabled-row' : ''}`} 
-                                onClick={() => !currentDayLocked && setData({...data, [dKey]:{...(data[dKey]||{}), [p]:!data[dKey]?.[p]}})}>
+                            <div key={p} className={`prayer-row ${chk ? 'is-checked' : ''} ${isDone ? 'disabled-row' : ''}`} 
+                                onClick={() => !isDone && setData({...data, [dKey]:{...(data[dKey]||{}), [p]:!data[dKey]?.[p]}})}>
                                 <div className="custom-check"></div><span>{p} Namazı</span>
                             </div>
                         );
                     })}
 
-                    <button className="btn btn-gold" disabled={currentDayLocked} onClick={completeDay}>GÜNÜ TAMAMLA</button>
+                    <button className="btn btn-gold" disabled={isDayDone(selectedDate.d, selectedDate.m, selectedDate.y)} onClick={completeDay}>GÜNÜ TAMAMLA</button>
 
                     <h4 style={{color:'var(--gold)', margin:'25px 0 10px 0'}}>Tamamlananlar</h4>
                     <div style={{maxHeight:'160px', overflowY:'auto'}}>
@@ -345,11 +328,21 @@
                         ))}
                     </div>
 
+                    <button className="btn btn-gold" style={{background:'transparent', color:'var(--danger)', border:'1px solid rgba(239, 68, 68, 0.3)', fontSize:'11px', marginTop:'25px'}} onClick={handleReset}>SİSTEMİ SIFIRLA</button>
+
                     {interimSuccess && (
                         <div className="overlay" style={{background:'rgba(0,0,0,0.4)'}}>
-                            <div className="modal" style={{padding:'20px'}}>
-                                <div style={{fontSize:'2.5rem'}}>👏</div>
-                                <div className="congrats-title" style={{fontSize:'1.2rem'}}>{interimSuccess}</div>
+                            <div className="modal" style={{padding:'20px'}}><div style={{fontSize:'2.5rem'}}>👏</div><div className="congrats-title" style={{fontSize:'1.2rem'}}>{interimSuccess}</div></div>
+                        </div>
+                    )}
+
+                    {viewing && (
+                        <div className="overlay" onClick={() => setViewing(null)}>
+                            <div className="modal" onClick={e => e.stopPropagation()}>
+                                <div className="congrats-title">{viewing.type==='year'?'🏆':'✨'}</div>
+                                <div style={{color:'white', opacity:0.9, marginBottom:'20px'}}>{viewing.label} Tamamlandı!</div>
+                                <button className="btn btn-gold" onClick={() => handleShare(`${viewing.label} kaza borcumu başarıyla tamamladım. Elhamdülillah!`)}>BAŞARIMI PAYLAŞ</button>
+                                <button className="btn btn-outline" style={{marginTop:'10px'}} onClick={() => setViewing(null)}>KAPAT</button>
                             </div>
                         </div>
                     )}
@@ -357,10 +350,10 @@
                     {showFinalCelebration && (
                         <div className="overlay">
                             <div className="modal">
-                                <div style={{fontSize:'4rem', marginBottom:'10px'}}>🎉</div>
+                                <div style={{fontSize:'4rem', marginBottom:'10px'}}>🕋</div>
                                 <div className="congrats-title">MÜJDELER OLSUN!</div>
-                                <div className="congrats-sub">Tüm kaza borçlarını başarıyla tamamladın.</div>
-                                <button className="btn btn-gold" onClick={() => { if (navigator.share) navigator.share({title: 'Kaza Rehberi', text: 'Hedefimi tamamladım!'}); }}>PAYLAŞ 🚀</button>
+                                <div className="congrats-sub">Niyet ettiğin tüm kaza borçlarını sabır ve azimle tamamladın. Rabbim kabul eylesin, dualarını makbul kılsın.</div>
+                                <button className="btn btn-gold" onClick={() => handleShare(`Elhamdülillah! Tüm kaza namazlarımı bitirdim. Bu manevi huzura ortak olmak isteyenlere tavsiye ederim: ${window.location.href}`)}>BU SEVİNCİ PAYLAŞ 🚀</button>
                                 <button className="btn btn-outline" style={{marginTop:'10px'}} onClick={() => setShowFinalCelebration(false)}>KAPAT</button>
                             </div>
                         </div>
