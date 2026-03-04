@@ -5,14 +5,13 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <title>Kaza Rehberi</title>
     
-    <link rel="apple-touch-icon" href="https://img.icons8.com/fluency-systems-filled/512/d4af37/mosque.png">
-    <link rel="icon" type="image/png" href="https://img.icons8.com/fluency-systems-filled/96/d4af37/mosque.png">
+    <link rel="apple-touch-icon" href="https://translated-content.googleusercontent.com/image_generation_content/2">
+    <link rel="icon" type="image/png" href="https://translated-content.googleusercontent.com/image_generation_content/2">
     
     <meta name="apple-mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
     <meta name="apple-mobile-web-app-title" content="KazaRehberi">
 
-    <link id="favicon" rel="icon" type="image/svg+xml" href="">
     <script src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
     <script src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
     <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
@@ -59,7 +58,7 @@
         }
 
         .logo-container { text-align: center; margin-bottom: 25px; position: relative; }
-        .logo-icon { width: 50px; height: 50px; fill: var(--gold); filter: drop-shadow(0 0 8px rgba(212, 175, 55, 0.4)); margin-bottom: 8px; }
+        .app-logo-img { width: 80px; height: 80px; border-radius: 20px; margin-bottom: 10px; border: 2px solid var(--gold); box-shadow: 0 0 15px rgba(212, 175, 55, 0.3); }
         .logo-text { font-weight: 600; letter-spacing: 4px; color: var(--gold); font-size: 1.2rem; margin: 0; display: inline-block; }
         .version-badge { font-size: 0.6rem; background: var(--gold); color: var(--deep-bg); padding: 2px 6px; border-radius: 5px; vertical-align: middle; margin-left: 5px; font-weight: bold; }
         .logo-subtext { font-size: 0.65rem; letter-spacing: 2px; text-transform: uppercase; opacity: 0.7; margin-top: 4px; }
@@ -112,18 +111,14 @@
         const PRAYERS = ['Sabah', 'Öğle', 'İkindi', 'Akşam', 'Yatsı', 'Vitr'];
         const MONTHS = ['Ocak', 'Şubat', 'Mart', 'Nisan', 'Mayıs', 'Haziran', 'Temmuz', 'Ağustos', 'Eylül', 'Ekim', 'Kasım', 'Aralık'];
         const STORAGE_KEY = 'kaza_v14_final';
-
-        const setFavicon = () => {
-            const svgIcon = `<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='%23d4af37'><path d='M12,7V3L2,12H5V21H9V15H15V21H19V12H22L12,7M12,10A2,2 0 0,1 14,12A2,2 0 0,1 12,14A2,2 0 0,1 10,12A2,2 0 0,1 12,10M21,19H19V17H21V19M21,15H19V13H21V15M21,11H19V9H21V11M5,19H3V17H5V19M5,15H3V13H5V15M5,11H3V9H5V11Z' /></svg>`;
-            document.getElementById('favicon').setAttribute('href', `data:image/svg+xml,${svgIcon}`);
-        };
+        const LOGO_URL = 'https://translated-content.googleusercontent.com/image_generation_content/2';
 
         const Logo = () => (
             <div className="logo-container">
-                <svg className="logo-icon" viewBox="0 0 24 24"><path d="M12,7V3L2,12H5V21H9V15H15V21H19V12H22L12,7M12,10A2,2 0 0,1 14,12A2,2 0 0,1 12,14A2,2 0 0,1 10,12A2,2 0 0,1 12,10M21,19H19V17H21V19M21,15H19V13H21V15M21,11H19V9H21V11M5,19H3V17H5V19M5,15H3V13H5V15M5,11H3V9H5V11Z" /></svg>
+                <img src={LOGO_URL} className="app-logo-img" alt="Logo" />
                 <div>
                     <h1 className="logo-text">KAZA REHBERİ</h1>
-                    <span className="version-badge">1.9</span>
+                    <span className="version-badge">1.9.1</span>
                 </div>
                 <div className="logo-subtext">Manevi Yolculuk Takibi</div>
             </div>
@@ -145,7 +140,6 @@
             const isDayDone = (d, m, y) => isMonthDone(m, y) || archive.some(a => a.type === 'day' && a.d === d && a.m === m && a.y === y);
 
             useEffect(() => {
-                setFavicon();
                 const saved = localStorage.getItem(STORAGE_KEY);
                 if (saved) {
                     const parsed = JSON.parse(saved);
@@ -158,14 +152,12 @@
                         const currentData = parsed.data || {};
                         const currentArchive = parsed.archive || [];
                         
-                        // 1. Partial check scan
                         for (const key in currentData) {
                             const [d, m, y] = key.split('-').map(Number);
                             if (Object.values(currentData[key]).some(v => v === true) && !isDayDoneInternal(d, m, y, currentArchive)) {
                                 foundDate = { d, m, y }; break;
                             }
                         }
-                        // 2. First unfinished day scan
                         if (!foundDate) {
                             let check = new Date(parsed.range.startY, parsed.range.startM, 1);
                             const end = new Date(parsed.range.endY, parsed.range.endM, 1);
@@ -208,8 +200,7 @@
                     else { for (let d = 1; d <= daysInMonth(m, y); d++) if (isDayDone(d, m, y)) done++; }
                     curr.setMonth(curr.getMonth() + 1);
                 }
-                const finalDone = Math.min(done, totalDaysCount);
-                return { percent: totalDaysCount ? ((finalDone / totalDaysCount) * 100).toFixed(1) : 0, done: finalDone, total: totalDaysCount };
+                return { percent: totalDaysCount ? ((Math.min(done, totalDaysCount) / totalDaysCount) * 100).toFixed(1) : 0, done: Math.min(done, totalDaysCount), total: totalDaysCount };
             })();
 
             const handleShare = (msg) => {
@@ -218,7 +209,7 @@
             };
 
             const handleReset = () => { 
-                if(confirm("DİKKAT: Tüm kayıtlı kaza namazı verileriniz ve arşiviniz kalıcı olarak silinecek. Emin misiniz?")) { 
+                if(confirm("Tüm kayıtlı veriler silinecek. Emin misiniz?")) { 
                     localStorage.removeItem(STORAGE_KEY); 
                     window.location.reload(); 
                 } 
