@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>Kaza Rehberi - Zafer</title>
+    <title>Kaza Rehberi</title>
     
     <link rel="apple-touch-icon" href="https://img.icons8.com/fluency-systems-filled/512/d4af37/mosque.png">
     <link rel="icon" type="image/png" href="https://img.icons8.com/fluency-systems-filled/96/d4af37/mosque.png">
@@ -58,9 +58,10 @@
             box-shadow: 0 8px 32px 0 rgba(0, 0, 0, 0.4);
         }
 
-        .logo-container { text-align: center; margin-bottom: 25px; }
+        .logo-container { text-align: center; margin-bottom: 25px; position: relative; }
         .logo-icon { width: 50px; height: 50px; fill: var(--gold); filter: drop-shadow(0 0 8px rgba(212, 175, 55, 0.4)); margin-bottom: 8px; }
-        .logo-text { font-weight: 600; letter-spacing: 4px; color: var(--gold); font-size: 1.2rem; margin: 0; }
+        .logo-text { font-weight: 600; letter-spacing: 4px; color: var(--gold); font-size: 1.2rem; margin: 0; display: inline-block; }
+        .version-badge { font-size: 0.6rem; background: var(--gold); color: var(--deep-bg); padding: 2px 6px; border-radius: 5px; vertical-align: middle; margin-left: 5px; font-weight: bold; }
         .logo-subtext { font-size: 0.65rem; letter-spacing: 2px; text-transform: uppercase; opacity: 0.7; margin-top: 4px; }
 
         .progress-section { background: rgba(0,0,0,0.2); padding: 15px; border-radius: 18px; border: 1px solid var(--glass-border); margin-bottom: 20px; }
@@ -120,7 +121,10 @@
         const Logo = () => (
             <div className="logo-container">
                 <svg className="logo-icon" viewBox="0 0 24 24"><path d="M12,7V3L2,12H5V21H9V15H15V21H19V12H22L12,7M12,10A2,2 0 0,1 14,12A2,2 0 0,1 12,14A2,2 0 0,1 10,12A2,2 0 0,1 12,10M21,19H19V17H21V19M21,15H19V13H21V15M21,11H19V9H21V11M5,19H3V17H5V19M5,15H3V13H5V15M5,11H3V9H5V11Z" /></svg>
-                <h1 className="logo-text">KAZA REHBERİ</h1>
+                <div>
+                    <h1 className="logo-text">KAZA REHBERİ</h1>
+                    <span className="version-badge">1.5</span>
+                </div>
                 <div className="logo-subtext">Manevi Yolculuk Takibi</div>
             </div>
         );
@@ -134,6 +138,12 @@
             const [viewing, setViewing] = useState(null);
             const [showFinalCelebration, setShowFinalCelebration] = useState(false);
 
+            const daysInMonth = (m, y) => new Date(y, m + 1, 0).getDate();
+            const isYearDone = (y) => archive.some(a => a.type === 'year' && a.y === y);
+            const isMonthDone = (m, y) => isYearDone(y) || archive.some(a => a.type === 'month' && a.m === m && a.y === y);
+            const isDayDone = (d, m, y) => isMonthDone(m, y) || archive.some(a => a.type === 'day' && a.d === d && a.m === m && a.y === y);
+
+            // AUTO-FIND ACTIVE START DATE
             useEffect(() => {
                 setFavicon();
                 const saved = localStorage.getItem(STORAGE_KEY);
@@ -142,7 +152,31 @@
                     setData(parsed.data || {});
                     setArchive(parsed.archive || []);
                     setRange(parsed.range || null);
-                    if (parsed.range) setSelectedDate({ d: 1, m: parsed.range.startM, y: parsed.range.startY });
+                    
+                    if (parsed.range) {
+                        let startY = parsed.range.startY;
+                        let startM = parsed.range.startM;
+
+                        // Check archive for earliest entry
+                        if (parsed.archive && parsed.archive.length > 0) {
+                            const sortedArchive = [...parsed.archive].sort((a, b) => {
+                                if (a.y !== b.y) return a.y - b.y;
+                                if (a.m !== b.m) return a.m - b.m;
+                                return (a.d || 0) - (b.d || 0);
+                            });
+                            startY = sortedArchive[0].y;
+                            startM = sortedArchive[0].m || 0;
+                        } 
+                        // Or check partial data
+                        else if (Object.keys(parsed.data || {}).length > 0) {
+                            const keys = Object.keys(parsed.data).map(k => k.split('-').map(Number));
+                            keys.sort((a, b) => a[2] !== b[2] ? a[2] - b[2] : a[1] !== b[1] ? a[1] - b[1] : a[0] - b[0]);
+                            startY = keys[0][2];
+                            startM = keys[0][1];
+                        }
+                        
+                        setSelectedDate({ d: 1, m: startM, y: startY });
+                    }
                 }
             }, []);
 
@@ -152,12 +186,6 @@
                     setTimeout(() => setShowFinalCelebration(true), 1000);
                 }
             }, [data, archive, range]);
-
-            const daysInMonth = (m, y) => new Date(y, m + 1, 0).getDate();
-            
-            const isYearDone = (y) => archive.some(a => a.type === 'year' && a.y === y);
-            const isMonthDone = (m, y) => isYearDone(y) || archive.some(a => a.type === 'month' && a.m === m && a.y === y);
-            const isDayDone = (d, m, y) => isMonthDone(m, y) || archive.some(a => a.type === 'day' && a.d === d && a.m === m && a.y === y);
 
             const stats = (() => {
                 if (!range) return { percent: 0, done: 0, total: 0 };
@@ -201,10 +229,52 @@
                 }
             };
 
+            // AUTO-SKIP LOGIC FOR DAY/MONTH/YEAR
+            const findNextOpenDate = (currentY, currentM) => {
+                let checkDate = new Date(currentY, currentM, 1);
+                const endDate = new Date(range.endY, range.endM, 1);
+                
+                while (checkDate <= endDate) {
+                    const y = checkDate.getFullYear();
+                    const m = checkDate.getMonth();
+                    if (!isMonthDone(m, y)) return { y, m };
+                    checkDate.setMonth(checkDate.getMonth() + 1);
+                }
+                return { y: currentY, m: currentM }; // Stay if nothing found
+            };
+
+            const completeDay = () => {
+                const newArchive = [{ label: `${selectedDate.d} ${MONTHS[selectedDate.m]} ${selectedDate.y}`, d: selectedDate.d, m: selectedDate.m, y: selectedDate.y, type: 'day', key: `d-${selectedDate.d}-${selectedDate.m}-${selectedDate.y}` }, ...archive];
+                setArchive(newArchive);
+
+                // Auto next day
+                const maxDays = daysInMonth(selectedDate.m, selectedDate.y);
+                if (selectedDate.d < maxDays) {
+                    setSelectedDate(prev => ({ ...prev, d: prev.d + 1 }));
+                } else {
+                    const next = findNextOpenDate(selectedDate.y, selectedDate.m + 1);
+                    setSelectedDate({ d: 1, m: next.m, y: next.y });
+                }
+            };
+
             const completeMonth = () => {
                 if (isMonthDone(selectedDate.m, selectedDate.y)) return;
                 const filtered = archive.filter(a => !(a.type === 'day' && a.m === selectedDate.m && a.y === selectedDate.y));
                 setArchive([{ label: `${MONTHS[selectedDate.m]} ${selectedDate.y}`, m: selectedDate.m, y: selectedDate.y, type: 'month', key: `m-${selectedDate.m}-${selectedDate.y}` }, ...filtered]);
+                
+                // Auto next month
+                const next = findNextOpenDate(selectedDate.y, selectedDate.m + 1);
+                setSelectedDate({ d: 1, m: next.m, y: next.y });
+            };
+
+            const completeYear = () => {
+                if (isYearDone(selectedDate.y)) return;
+                const filtered = archive.filter(a => a.y !== selectedDate.y);
+                setArchive([{ label: `${selectedDate.y} Yılı 🏆`, y: selectedDate.y, type: 'year', key: `y-${selectedDate.y}` }, ...filtered]);
+                
+                // Auto next year
+                const next = findNextOpenDate(selectedDate.y + 1, 0);
+                setSelectedDate({ d: 1, m: next.m, y: next.y });
             };
 
             if (!range) {
@@ -266,10 +336,7 @@
 
                     <div style={{display:'flex', gap:'10px', marginBottom:'10px'}}>
                         <button className="btn btn-outline" disabled={currentMonthLocked} onClick={completeMonth}>Ayı Bitir</button>
-                        <button className="btn btn-outline" disabled={isYearDone(selectedDate.y)} onClick={() => {
-                            const filtered = archive.filter(a => a.y !== selectedDate.y);
-                            setArchive([{ label: `${selectedDate.y} Yılı 🏆`, y: selectedDate.y, type: 'year', key: `y-${selectedDate.y}` }, ...filtered]);
-                        }}>Yılı Bitir</button>
+                        <button className="btn btn-outline" disabled={isYearDone(selectedDate.y)} onClick={completeYear}>Yılı Bitir</button>
                     </div>
 
                     {PRAYERS.map(p => {
@@ -284,7 +351,7 @@
                         );
                     })}
 
-                    <button className="btn btn-gold" disabled={currentDayLocked} onClick={() => setArchive([{ label: `${selectedDate.d} ${MONTHS[selectedDate.m]} ${selectedDate.y}`, d: selectedDate.d, m: selectedDate.m, y: selectedDate.y, type: 'day', key: `d-${selectedDate.d}-${selectedDate.m}-${selectedDate.y}` }, ...archive])}>GÜNÜ TAMAMLA</button>
+                    <button className="btn btn-gold" disabled={currentDayLocked} onClick={completeDay}>GÜNÜ TAMAMLA</button>
 
                     <h4 style={{color:'var(--gold)', margin:'25px 0 10px 0'}}>Tamamlananlar</h4>
                     <div style={{maxHeight:'160px', overflowY:'auto'}}>
