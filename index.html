@@ -25,14 +25,11 @@
             --deep-bg: #042f24;
             --overlay-bg: rgba(4, 47, 36, 0.85); 
             --danger: #ef4444;
+            --info: #3b82f6;
         }
 
         html, body {
-            margin: 0;
-            padding: 0;
-            width: 100%;
-            height: 100%;
-            background: var(--deep-bg);
+            margin: 0; padding: 0; width: 100%; height: 100%; background: var(--deep-bg);
         }
 
         body {
@@ -40,13 +37,8 @@
             background: linear-gradient(135deg, var(--deep-bg), #0a5c48);
             background-attachment: fixed;
             color: white; 
-            display: flex; 
-            justify-content: center; 
-            min-height: 100vh;
-            padding: 20px;
-            box-sizing: border-box;
-            -webkit-tap-highlight-color: transparent;
-            overflow-x: hidden;
+            display: flex; justify-content: center; min-height: 100vh;
+            padding: 20px; box-sizing: border-box; -webkit-tap-highlight-color: transparent; overflow-x: hidden;
         }
 
         #root { width: 100%; max-width: 500px; }
@@ -88,6 +80,7 @@
         .btn { width: 100%; padding: 14px; border-radius: 15px; font-weight: 600; border: none; cursor: pointer; margin-top: 10px; transition: 0.3s; }
         .btn-gold { background: var(--gold); color: var(--emerald); letter-spacing: 1px; }
         .btn-outline { background: transparent; color: white; border: 1px solid rgba(255,255,255,0.3); font-size: 12px; }
+        .btn-backup { background: rgba(59, 130, 246, 0.2); color: #93c5fd; border: 1px solid rgba(59, 130, 246, 0.5); font-size: 12px; }
         .btn:disabled { opacity: 0.3; cursor: not-allowed; }
 
         .archive-item {
@@ -101,6 +94,8 @@
         @keyframes modalIn { from { transform: scale(0.8); opacity: 0; } to { transform: scale(1); opacity: 1; } }
         .congrats-title { color: var(--gold); font-size: 1.6rem; margin-bottom: 10px; font-weight: 600; }
         .congrats-sub { font-size: 0.95rem; color: white; opacity: 0.9; line-height: 1.4; margin-bottom: 20px; }
+        
+        #backup-upload, #backup-upload-init { display: none; }
     </style>
 </head>
 <body>
@@ -118,7 +113,7 @@
                 <img src={LOGO_URL} className="app-logo-img" alt="Logo" />
                 <div>
                     <h1 className="logo-text">KAZA REHBERİ</h1>
-                    <span className="version-badge">1.9.1</span>
+                    <span className="version-badge">2.0</span>
                 </div>
                 <div className="logo-subtext">Manevi Yolculuk Takibi</div>
             </div>
@@ -138,6 +133,9 @@
             const isYearDone = (y) => archive.some(a => a.type === 'year' && a.y === y);
             const isMonthDone = (m, y) => isYearDone(y) || archive.some(a => a.type === 'month' && a.m === m && a.y === y);
             const isDayDone = (d, m, y) => isMonthDone(m, y) || archive.some(a => a.type === 'day' && a.d === d && a.m === m && a.y === y);
+
+            const isMonthDoneInternal = (m, y, arch) => arch.some(a => (a.type === 'year' && a.y === y) || (a.type === 'month' && a.m === m && a.y === y));
+            const isDayDoneInternal = (d, m, y, arch) => isMonthDoneInternal(m, y, arch) || arch.some(a => a.type === 'day' && a.d === d && a.m === m && a.y === y);
 
             useEffect(() => {
                 const saved = localStorage.getItem(STORAGE_KEY);
@@ -177,9 +175,6 @@
                 }
             }, []);
 
-            const isMonthDoneInternal = (m, y, arch) => arch.some(a => (a.type === 'year' && a.y === y) || (a.type === 'month' && a.m === m && a.y === y));
-            const isDayDoneInternal = (d, m, y, arch) => isMonthDoneInternal(m, y, arch) || arch.some(a => a.type === 'day' && a.d === d && a.m === m && a.y === y);
-
             useEffect(() => {
                 if (range) localStorage.setItem(STORAGE_KEY, JSON.stringify({ data, archive, range }));
                 if (range && stats.percent >= 100 && stats.total > 0) {
@@ -202,6 +197,37 @@
                 }
                 return { percent: totalDaysCount ? ((Math.min(done, totalDaysCount) / totalDaysCount) * 100).toFixed(1) : 0, done: Math.min(done, totalDaysCount), total: totalDaysCount };
             })();
+
+            // BACKUP LOGIC
+            const exportBackup = () => {
+                const backupData = JSON.stringify({ data, archive, range });
+                const blob = new Blob([backupData], { type: 'application/json' });
+                const url = URL.createObjectURL(blob);
+                const link = document.createElement('a');
+                link.href = url;
+                link.download = `kaza_rehberi_yedek_${new Date().toLocaleDateString()}.json`;
+                link.click();
+            };
+
+            const importBackup = (e) => {
+                const file = e.target.files[0];
+                if (!file) return;
+                const reader = new FileReader();
+                reader.onload = (event) => {
+                    try {
+                        const parsed = JSON.parse(event.target.result);
+                        if (parsed.range) {
+                            setData(parsed.data || {});
+                            setArchive(parsed.archive || []);
+                            setRange(parsed.range);
+                            // Otomatik olarak kayıtlı başlangıç tarihine git
+                            setSelectedDate({ d: 1, m: parsed.range.startM, y: parsed.range.startY });
+                            alert("Veriler başarıyla yüklendi!");
+                        } else { alert("Geçersiz yedek dosyası."); }
+                    } catch (err) { alert("Dosya okuma hatası."); }
+                };
+                reader.readAsText(file);
+            };
 
             const handleShare = (msg) => {
                 if (navigator.share) navigator.share({ title: 'Kaza Rehberi', text: msg });
@@ -266,6 +292,12 @@
                         <select value={setup.endY} onChange={e => setSetup({...setup, endY: Number(e.target.value)})}>{[...Array(50)].map((_, i) => <option key={i} value={2026-i}>{2026-i}</option>)}</select>
                     </div>
                     <button className="btn btn-gold" onClick={() => {setRange(setup); setSelectedDate({d:1, m:setup.startM, y:setup.startY});}}>SİSTEMİ KUR</button>
+                    
+                    <div style={{marginTop:'25px', borderTop:'1px solid var(--glass-border)', paddingTop:'20px', textAlign:'center'}}>
+                        <p style={{fontSize:'12px', opacity:0.7, marginBottom:'10px'}}>Mevcut bir yedeğiniz mi var?</p>
+                        <input type="file" id="backup-upload-init" accept=".json" onChange={importBackup} />
+                        <button className="btn btn-backup" onClick={() => document.getElementById('backup-upload-init').click()}>YEDEKTEN GERİ YÜKLE</button>
+                    </div>
                 </div>
             );
 
@@ -317,6 +349,13 @@
                                 <span>{rec.label}</span><span>{rec.type==='year'?'👑':'✓'}</span>
                             </div>
                         ))}
+                    </div>
+
+                    {/* BACKUP SECTION */}
+                    <div style={{marginTop:'25px', borderTop:'1px solid var(--glass-border)', paddingTop:'15px'}}>
+                        <button className="btn btn-backup" onClick={exportBackup}>VERİLERİ YEDEKLE (JSON)</button>
+                        <input type="file" id="backup-upload" accept=".json" onChange={importBackup} />
+                        <button className="btn btn-outline" style={{marginTop:'10px'}} onClick={() => document.getElementById('backup-upload').click()}>YEDEK DOSYASI YÜKLE</button>
                     </div>
 
                     <button className="btn btn-gold" style={{background:'transparent', color:'var(--danger)', border:'1px solid rgba(239, 68, 68, 0.3)', fontSize:'11px', marginTop:'25px'}} onClick={handleReset}>SİSTEMİ SIFIRLA</button>
