@@ -28,17 +28,13 @@
             --info: #3b82f6;
         }
 
-        html, body {
-            margin: 0; padding: 0; width: 100%; height: 100%; background: var(--deep-bg);
-        }
-
+        html, body { margin: 0; padding: 0; width: 100%; height: 100%; background: var(--deep-bg); overflow-x: hidden; }
         body {
             font-family: 'Montserrat', sans-serif;
             background: linear-gradient(135deg, var(--deep-bg), #0a5c48);
             background-attachment: fixed;
-            color: white; 
-            display: flex; justify-content: center; min-height: 100vh;
-            padding: 20px; box-sizing: border-box; -webkit-tap-highlight-color: transparent; overflow-x: hidden;
+            color: white; display: flex; justify-content: center; min-height: 100vh;
+            padding: 20px; box-sizing: border-box; -webkit-tap-highlight-color: transparent;
         }
 
         #root { width: 100%; max-width: 500px; }
@@ -66,7 +62,6 @@
             background: rgba(255,255,255,0.1); color: white; outline: none; cursor: pointer; font-size: 13px;
         }
         select option { background: var(--emerald); }
-        select:disabled { opacity: 0.4; cursor: not-allowed; }
 
         .prayer-row {
             display: flex; align-items: center; padding: 12px; background: rgba(255,255,255,0.05);
@@ -81,27 +76,30 @@
         .btn-gold { background: var(--gold); color: var(--emerald); letter-spacing: 1px; }
         .btn-outline { background: transparent; color: white; border: 1px solid rgba(255,255,255,0.3); font-size: 12px; }
         .btn-backup { background: rgba(59, 130, 246, 0.2); color: #93c5fd; border: 1px solid rgba(59, 130, 246, 0.5); font-size: 12px; }
-        .btn:disabled { opacity: 0.3; cursor: not-allowed; }
 
         .archive-item {
             background: rgba(255,255,255,0.07); padding: 12px 18px; border-radius: 12px;
-            margin-bottom: 8px; display: flex; justify-content: space-between; cursor: pointer; border: 1px solid var(--glass-border);
+            margin-bottom: 8px; display: flex; flex-direction: column; cursor: pointer; border: 1px solid var(--glass-border);
         }
-        .archive-year { border-left: 5px solid var(--gold); background: linear-gradient(90deg, rgba(212,175,55,0.2), transparent); }
+        .archive-header { display: flex; justify-content: space-between; align-items: center; width: 100%; }
+        .archive-type-tag { font-size: 9px; padding: 2px 6px; border-radius: 4px; background: rgba(212,175,55,0.2); color: var(--gold); margin-right: 8px; font-weight: bold; }
+        .completion-date { font-size: 10px; opacity: 0.6; margin-top: 4px; color: var(--gold); }
 
-        .stats-card {
-            background: rgba(0,0,0,0.2); padding: 15px; border-radius: 18px; border: 1px solid var(--glass-border); margin: 15px 0;
-        }
+        .stats-card { background: rgba(0,0,0,0.2); padding: 15px; border-radius: 18px; border: 1px solid var(--glass-border); margin: 15px 0; }
         .stats-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
         .stat-box { background: rgba(255,255,255,0.05); padding: 12px 10px; border-radius: 10px; text-align: center; border: 1px solid rgba(255,255,255,0.05); }
         .stat-val { display: block; color: var(--gold); font-weight: 600; font-size: 1.2rem; }
         .stat-label { font-size: 0.65rem; opacity: 0.7; text-transform: uppercase; letter-spacing: 1px; }
 
         .overlay { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: var(--overlay-bg); display: flex; align-items: center; justify-content: center; z-index: 1000; backdrop-filter: blur(10px); }
-        .modal { background: linear-gradient(145deg, var(--emerald), #083d2f); border: 2px solid var(--gold); width: 85%; max-width: 380px; border-radius: 30px; padding: 30px; text-align: center; box-shadow: 0 20px 50px rgba(0,0,0,0.6); animation: modalIn 0.3s ease-out; }
+        .modal { background: linear-gradient(145deg, var(--emerald), #083d2f); border: 2px solid var(--gold); width: 90%; max-width: 420px; border-radius: 30px; padding: 25px; text-align: center; box-shadow: 0 20px 50px rgba(0,0,0,0.6); animation: modalIn 0.3s ease-out; }
         @keyframes modalIn { from { transform: scale(0.8); opacity: 0; } to { transform: scale(1); opacity: 1; } }
-        .congrats-title { color: var(--gold); font-size: 1.6rem; margin-bottom: 10px; font-weight: 600; }
-        .congrats-sub { font-size: 0.95rem; color: white; opacity: 0.9; line-height: 1.4; margin-bottom: 20px; }
+        
+        .history-container { margin: 15px 0; background: rgba(0,0,0,0.3); border-radius: 15px; overflow: hidden; border: 1px solid var(--glass-border); }
+        .history-table { width: 100%; border-collapse: collapse; font-size: 11px; }
+        .history-table th { background: rgba(212, 175, 55, 0.2); color: var(--gold); padding: 10px 5px; text-align: left; border-bottom: 1px solid var(--glass-border); }
+        .history-table td { padding: 10px 5px; text-align: left; border-bottom: 1px solid rgba(255,255,255,0.05); color: #fff; }
+        .history-scroll { max-height: 250px; overflow-y: auto; }
         
         #backup-upload, #backup-upload-init { display: none; }
     </style>
@@ -110,19 +108,17 @@
     <div id="root"></div>
 
     <script type="text/babel">
-        const { useState, useEffect } = React;
+        const { useState, useEffect, useMemo, useCallback } = React;
         const PRAYERS = ['Sabah', 'Öğle', 'İkindi', 'Akşam', 'Yatsı', 'Vitr'];
         const MONTHS = ['Ocak', 'Şubat', 'Mart', 'Nisan', 'Mayıs', 'Haziran', 'Temmuz', 'Ağustos', 'Eylül', 'Ekim', 'Kasım', 'Aralık'];
-        const STORAGE_KEY = 'kaza_v14_final';
+        const STORAGE_KEY = 'kaza_v23_final_nav';
         const LOGO_URL = 'https://raw.githubusercontent.com/fetkilic/KazaRehberi/refs/heads/main/logo.jpg';
+        const TYPE_LABELS = { day: 'GÜN', week: 'HAFTA', month: 'AY', year: 'YIL' };
 
         const Logo = () => (
             <div className="logo-container">
                 <img src={LOGO_URL} className="app-logo-img" alt="Logo" />
-                <div>
-                    <h1 className="logo-text">KAZA REHBERİ</h1>
-                    <span className="version-badge">2.0.1</span>
-                </div>
+                <div><h1 className="logo-text">KAZA REHBERİ</h1><span className="version-badge">2.3.2</span></div>
                 <div className="logo-subtext">Manevi Yolculuk Takibi</div>
             </div>
         );
@@ -134,63 +130,42 @@
             const [data, setData] = useState({});
             const [archive, setArchive] = useState([]);
             const [viewing, setViewing] = useState(null);
-            const [showFinalCelebration, setShowFinalCelebration] = useState(false);
             const [interimSuccess, setInterimSuccess] = useState(null);
 
             const daysInMonth = (m, y) => new Date(y, m + 1, 0).getDate();
-            const isYearDone = (y) => archive.some(a => a.type === 'year' && a.y === y);
-            const isMonthDone = (m, y) => isYearDone(y) || archive.some(a => a.type === 'month' && a.m === m && a.y === y);
-            const isDayDone = (d, m, y) => isMonthDone(m, y) || archive.some(a => a.type === 'day' && a.d === d && a.m === m && a.y === y);
+            
+            const isDayDone = useCallback((d, m, y, currentArchive, currentData) => {
+                const arch = currentArchive || archive;
+                if (arch.some(a => a.type === 'year' && a.y === y)) return true;
+                if (arch.some(a => a.type === 'month' && a.m === m && a.y === y)) return true;
+                if (arch.some(a => a.type === 'day' && a.d === d && a.m === m && a.y === y)) return true;
+                if (arch.some(a => a.type === 'week' && a.days.some(day => day.d === d && day.m === m && day.y === y))) return true;
+                return false;
+            }, [archive]);
 
-            const isMonthDoneInternal = (m, y, arch) => arch.some(a => (a.type === 'year' && a.y === y) || (a.type === 'month' && a.m === m && a.y === y));
-            const isDayDoneInternal = (d, m, y, arch) => isMonthDoneInternal(m, y, arch) || arch.some(a => a.type === 'day' && a.d === d && a.m === m && a.y === y);
+            const findSmartStartDate = useCallback((r, arch, dta) => {
+                let checkDate = new Date(r.startY, r.startM, 1);
+                const endDate = new Date(r.endY, r.endM, 31);
+                while (checkDate <= endDate) {
+                    const y = checkDate.getFullYear(), m = checkDate.getMonth(), d = checkDate.getDate();
+                    if (!isDayDone(d, m, y, arch)) return { d, m, y };
+                    checkDate.setDate(checkDate.getDate() + 1);
+                }
+                return { d: 1, m: r.startM, y: r.startY };
+            }, [isDayDone]);
 
             useEffect(() => {
                 const saved = localStorage.getItem(STORAGE_KEY);
                 if (saved) {
                     const parsed = JSON.parse(saved);
-                    setData(parsed.data || {});
-                    setArchive(parsed.archive || []);
-                    setRange(parsed.range || null);
-                    
-                    if (parsed.range) {
-                        let foundDate = null;
-                        const currentData = parsed.data || {};
-                        const currentArchive = parsed.archive || [];
-                        
-                        for (const key in currentData) {
-                            const [d, m, y] = key.split('-').map(Number);
-                            if (Object.values(currentData[key]).some(v => v === true) && !isDayDoneInternal(d, m, y, currentArchive)) {
-                                foundDate = { d, m, y }; break;
-                            }
-                        }
-                        if (!foundDate) {
-                            let check = new Date(parsed.range.startY, parsed.range.startM, 1);
-                            const end = new Date(parsed.range.endY, parsed.range.endM, 1);
-                            while (check <= end && !foundDate) {
-                                const cy = check.getFullYear(), cm = check.getMonth();
-                                if (!isMonthDoneInternal(cm, cy, currentArchive)) {
-                                    for (let cd = 1; cd <= daysInMonth(cm, cy); cd++) {
-                                        if (!isDayDoneInternal(cd, cm, cy, currentArchive)) { foundDate = { d: cd, m: cm, y: cy }; break; }
-                                    }
-                                }
-                                check.setMonth(check.getMonth() + 1);
-                            }
-                        }
-                        if (foundDate) setSelectedDate(foundDate);
-                        else setSelectedDate({ d: 1, m: parsed.range.startM, y: parsed.range.startY });
-                    }
+                    setData(parsed.data || {}); setArchive(parsed.archive || []); setRange(parsed.range || null);
+                    if (parsed.range) setSelectedDate(findSmartStartDate(parsed.range, parsed.archive || [], parsed.data || {}));
                 }
-            }, []);
+            }, []); // Sadece bir kez mount edildiğinde çalışır
 
-            useEffect(() => {
-                if (range) localStorage.setItem(STORAGE_KEY, JSON.stringify({ data, archive, range }));
-                if (range && stats.percent >= 100 && stats.total > 0) {
-                    setTimeout(() => setShowFinalCelebration(true), 1000);
-                }
-            }, [data, archive, range]);
+            useEffect(() => { if (range) localStorage.setItem(STORAGE_KEY, JSON.stringify({ data, archive, range })); }, [data, archive, range]);
 
-            const stats = (() => {
+            const stats = useMemo(() => {
                 if (!range) return { percent: 0, done: 0, total: 0 };
                 const start = new Date(range.startY, range.startM, 1);
                 const end = new Date(range.endY, range.endM + 1, 0);
@@ -199,143 +174,160 @@
                 let curr = new Date(range.startY, range.startM, 1);
                 while (curr <= new Date(range.endY, range.endM, 1)) {
                     const m = curr.getMonth(), y = curr.getFullYear();
-                    if (isMonthDone(m, y)) done += daysInMonth(m, y);
-                    else { for (let d = 1; d <= daysInMonth(m, y); d++) if (isDayDone(d, m, y)) done++; }
+                    const dCount = daysInMonth(m, y);
+                    if (archive.some(a => (a.type==='year' && a.y===y) || (a.type==='month' && a.m===m && a.y===y))) done += dCount;
+                    else { for (let d = 1; d <= dCount; d++) if (isDayDone(d, m, y)) done++; }
                     curr.setMonth(curr.getMonth() + 1);
                 }
                 return { percent: totalDaysCount ? ((Math.min(done, totalDaysCount) / totalDaysCount) * 100).toFixed(1) : 0, done: Math.min(done, totalDaysCount), total: totalDaysCount };
-            })();
+            }, [archive, range, isDayDone]);
 
-            // CALCULATION LOGIC FOR REMAINING PRAYERS
             const getRemainingByYear = (year) => {
-                if (!range) return { days: 0, prayers: 0 };
-                if (isYearDone(year)) return { days: 0, prayers: 0 };
-
-                let remainingDays = 0;
-                let remainingPrayers = 0;
-
-                const startMonth = (year === range.startY) ? range.startM : 0;
-                const endMonth = (year === range.endY) ? range.endM : 11;
-
-                for (let m = startMonth; m <= endMonth; m++) {
-                    if (isMonthDone(m, year)) continue;
-                    
-                    for (let d = 1; d <= daysInMonth(m, year); d++) {
+                if (!range || isDayDone(1, 0, year, archive)) { 
+                    if (archive.some(a => a.type==='year' && a.y === year)) return { days: 0, prayers: 0 };
+                }
+                let rDays = 0, rPrayers = 0;
+                const sM = (year === range.startY) ? range.startM : 0;
+                const eM = (year === range.endY) ? range.endM : 11;
+                for (let m = sM; m <= eM; m++) {
+                    const dCount = daysInMonth(m, year);
+                    if (archive.some(a => a.type==='month' && a.m===m && a.y===year)) continue;
+                    for (let d = 1; d <= dCount; d++) {
                         if (isDayDone(d, m, year)) continue;
-                        
-                        remainingDays++;
+                        rDays++;
                         const dKey = `${d}-${m}-${year}`;
-                        const dayData = data[dKey] || {};
-                        const completedInDay = PRAYERS.filter(p => dayData[p]).length;
-                        remainingPrayers += (PRAYERS.length - completedInDay);
+                        rPrayers += (PRAYERS.length - PRAYERS.filter(p => (data[dKey]||{})[p]).length);
                     }
                 }
-                return { days: remainingDays, prayers: remainingPrayers };
+                return { days: rDays, prayers: rPrayers };
             };
 
-            const exportBackup = () => {
-                const backupData = JSON.stringify({ data, archive, range });
-                const blob = new Blob([backupData], { type: 'application/json' });
-                const url = URL.createObjectURL(blob);
-                const link = document.createElement('a');
-                link.href = url;
-                link.download = `kaza_rehberi_yedek_${new Date().toLocaleDateString()}.json`;
-                link.click();
+            const forceNextDate = (type) => {
+                setSelectedDate(prev => {
+                    let next = { ...prev };
+                    if (type === 'day') {
+                        const max = daysInMonth(prev.m, prev.y);
+                        if (prev.d < max) next.d = prev.d + 1;
+                        else { next.d = 1; next.m++; if (next.m > 11) { next.m = 0; next.y++; } }
+                    } else if (type === 'month') {
+                        next.d = 1; next.m++; if (next.m > 11) { next.m = 0; next.y++; }
+                    } else if (type === 'year') {
+                        next.d = 1; next.m = 0; next.y++;
+                    }
+                    if (next.y > range.endY || (next.y === range.endY && next.m > range.endM)) return { y: range.startY, m: range.startM, d: 1 };
+                    return next;
+                });
             };
-
-            const importBackup = (e) => {
-                const file = e.target.files[0];
-                if (!file) return;
-                const reader = new FileReader();
-                reader.onload = (event) => {
-                    try {
-                        const parsed = JSON.parse(event.target.result);
-                        if (parsed.range) {
-                            setData(parsed.data || {});
-                            setArchive(parsed.archive || []);
-                            setRange(parsed.range);
-                            setSelectedDate({ d: 1, m: parsed.range.startM, y: parsed.range.startY });
-                            alert("Veriler başarıyla yüklendi!");
-                        } else { alert("Geçersiz yedek dosyası."); }
-                    } catch (err) { alert("Dosya okuma hatası."); }
-                };
-                reader.readAsText(file);
-            };
-
-            const handleShare = (msg) => {
-                if (navigator.share) navigator.share({ title: 'Kaza Rehberi', text: msg });
-                else { navigator.clipboard.writeText(msg); alert("Kopyalandı!"); }
-            };
-
-            const handleReset = () => { 
-                if(confirm("Tüm kayıtlı veriler silinecek. Emin misiniz?")) { 
-                    localStorage.removeItem(STORAGE_KEY); 
-                    window.location.reload(); 
-                } 
-            };
-
-            const findNextOpenDate = (currentY, currentM) => {
-                let checkDate = new Date(currentY, currentM, 1);
-                const endDate = new Date(range.endY, range.endM, 1);
-                while (checkDate <= endDate) {
-                    const y = checkDate.getFullYear(), m = checkDate.getMonth();
-                    if (!isMonthDone(m, y)) return { y, m, d: 1 };
-                    checkDate.setMonth(checkDate.getMonth() + 1);
-                }
-                return { y: range.startY, m: range.startM, d: 1 };
-            };
-
-            const triggerSuccess = (msg) => { setInterimSuccess(msg); setTimeout(() => setInterimSuccess(null), 2000); };
 
             const completeDay = () => {
-                const newArchive = [{ label: `${selectedDate.d} ${MONTHS[selectedDate.m]} ${selectedDate.y}`, d: selectedDate.d, m: selectedDate.m, y: selectedDate.y, type: 'day', key: `d-${selectedDate.d}-${selectedDate.m}-${selectedDate.y}` }, ...archive];
-                setArchive(newArchive);
-                triggerSuccess(`${selectedDate.d} ${MONTHS[selectedDate.m]} tamamlandı!`);
-                const maxDays = daysInMonth(selectedDate.m, selectedDate.y);
-                if (selectedDate.d < maxDays) setSelectedDate(prev => ({ ...prev, d: prev.d + 1 }));
-                else setSelectedDate(findNextOpenDate(selectedDate.y, selectedDate.m + 1));
+                const stamp = getNowStamp();
+                const newDay = { label: `${selectedDate.d} ${MONTHS[selectedDate.m]} ${selectedDate.y}`, d: selectedDate.d, m: selectedDate.m, y: selectedDate.y, type: 'day', completedAt: stamp };
+                setArchive(prev => bundleArchive([newDay, ...prev]));
+                setInterimSuccess(`${selectedDate.d} ${MONTHS[selectedDate.m]} tamamlandı!`);
+                setTimeout(()=>setInterimSuccess(null), 1500);
+                forceNextDate('day');
             };
 
             const completeMonth = () => {
-                if (isMonthDone(selectedDate.m, selectedDate.y)) return;
-                const filtered = archive.filter(a => !(a.type === 'day' && a.m === selectedDate.m && a.y === selectedDate.y));
-                setArchive([{ label: `${MONTHS[selectedDate.m]} ${selectedDate.y}`, m: selectedDate.m, y: selectedDate.y, type: 'month', key: `m-${selectedDate.m}-${selectedDate.y}` }, ...filtered]);
-                triggerSuccess(`${MONTHS[selectedDate.m]} ayı bitti!`);
-                setSelectedDate(findNextOpenDate(selectedDate.y, selectedDate.m + 1));
+                const stamp = getNowStamp();
+                const historyMap = new Map();
+                const newData = { ...data };
+                const dCount = daysInMonth(selectedDate.m, selectedDate.y);
+                for (let d = 1; d <= dCount; d++) {
+                    const dKey = `${d}-${selectedDate.m}-${selectedDate.y}`;
+                    if (!isDayDone(d, selectedDate.m, selectedDate.y)) {
+                        historyMap.set(dKey, { label: `${d} ${MONTHS[selectedDate.m]} ${selectedDate.y}`, date: stamp, sort: selectedDate.y*10000 + selectedDate.m*100 + d, d, m: selectedDate.m, y: selectedDate.y });
+                        newData[dKey] = PRAYERS.reduce((acc, p) => ({ ...acc, [p]: true }), {});
+                    }
+                }
+                archive.forEach(a => {
+                    if ((a.y === selectedDate.y && a.m === selectedDate.m) || (a.days && a.days.some(d => d.m === selectedDate.m && d.y === selectedDate.y))) {
+                        if (a.type === 'day' && a.m === selectedDate.m) historyMap.set(`${a.d}-${a.m}-${a.y}`, {label: a.label, date: a.completedAt, sort: a.y*10000+a.m*100+a.d, d: a.d, m: a.m, y: a.y});
+                        if (a.type === 'week' && a.days.some(d => d.m === selectedDate.m)) { a.days.forEach(d => { if(d.m === selectedDate.m) historyMap.set(`${d.d}-${d.m}-${d.y}`, {label: d.label, date: d.date, sort: d.sort, d: d.d, m: d.m, y: d.y}); }); }
+                    }
+                });
+                setData(newData);
+                const filtered = archive.filter(a => !((a.m === selectedDate.m || (a.days && a.days.some(d => d.m === selectedDate.m))) && (a.y === selectedDate.y || (a.days && a.days.some(d => d.y === selectedDate.y)))));
+                setArchive([{ label: `${MONTHS[selectedDate.m]} ${selectedDate.y} Paketi`, m: selectedDate.m, y: selectedDate.y, type: 'month', completedAt: stamp, days: Array.from(historyMap.values()).sort((a,b)=>a.sort-b.sort) }, ...filtered]);
+                setInterimSuccess(`${MONTHS[selectedDate.m]} ayı paketlendi!`);
+                setTimeout(()=>setInterimSuccess(null), 1500);
+                forceNextDate('month');
             };
 
             const completeYear = () => {
-                if (isYearDone(selectedDate.y)) return;
-                const filtered = archive.filter(a => a.y !== selectedDate.y);
-                setArchive([{ label: `${selectedDate.y} Yılı 🏆`, y: selectedDate.y, type: 'year', key: `y-${selectedDate.y}` }, ...filtered]);
-                triggerSuccess(`${selectedDate.y} yılı bitti! Maşallah.`);
-                setSelectedDate(findNextOpenDate(selectedDate.y + 1, 0));
+                const stamp = getNowStamp();
+                const historyMap = new Map();
+                const newData = { ...data };
+                for (let m = 0; m < 12; m++) {
+                    const dCount = daysInMonth(m, selectedDate.y);
+                    for (let d = 1; d <= dCount; d++) {
+                        const dKey = `${d}-${m}-${selectedDate.y}`;
+                        if (!isDayDone(d, m, selectedDate.y)) {
+                            historyMap.set(dKey, { label: `${d} ${MONTHS[m]} ${selectedDate.y}`, date: stamp, sort: selectedDate.y*10000 + m*100 + d, d, m, y: selectedDate.y });
+                            newData[dKey] = PRAYERS.reduce((acc, p) => ({ ...acc, [p]: true }), {});
+                        }
+                    }
+                }
+                archive.forEach(a => {
+                    if (a.y === selectedDate.y || (a.days && a.days.some(d => d.y === selectedDate.y))) {
+                        if (a.type === 'day') historyMap.set(`${a.d}-${a.m}-${a.y}`, {label: a.label, date: a.completedAt, sort: a.y*10000+a.m*100+a.d, d: a.d, m: a.m, y: a.y});
+                        else if (a.days) a.days.forEach(d => { if(d.y === selectedDate.y) historyMap.set(`${d.d}-${d.m}-${d.y}`, {label: d.label, date: d.date, sort: d.sort, d: d.d, m: d.m, y: d.y}); });
+                    }
+                });
+                setData(newData);
+                const filtered = archive.filter(a => a.y !== selectedDate.y && !(a.days && a.days.some(d => d.y === selectedDate.y)));
+                setArchive([{ label: `${selectedDate.y} Yılı 🏆`, y: selectedDate.y, type: 'year', completedAt: stamp, days: Array.from(historyMap.values()).sort((a,b)=>a.sort-b.sort) }, ...filtered]);
+                setInterimSuccess(`${selectedDate.y} yılı paketlendi!`);
+                setTimeout(()=>setInterimSuccess(null), 1500);
+                forceNextDate('year');
             };
+
+            const getNowStamp = () => {
+                const n = new Date();
+                return `${n.getDate().toString().padStart(2,'0')}.${(n.getMonth()+1).toString().padStart(2,'0')}.${n.getFullYear()} ${n.getHours().toString().padStart(2,'0')}:${n.getMinutes().toString().padStart(2,'0')}`;
+            };
+
+            const bundleArchive = (curr) => {
+                let n = [...curr]; const dItems = n.filter(a => a.type === 'day');
+                if (dItems.length >= 7) {
+                    const to = dItems.slice(-7);
+                    n = [{ type: 'week', label: `7 Günlük Hafta Paketi`, completedAt: getNowStamp(), days: to.map(d => ({ label: d.label, date: d.completedAt, sort: d.y*10000+d.m*100+d.d, d: d.d, m: d.m, y: d.y })) }, ...n.filter(a => !to.includes(a))];
+                }
+                return n;
+            };
+
+            const yearOptions = useMemo(() => {
+                const y = []; for (let i = 1900; i <= 2100; i++) y.push(i); return y;
+            }, []);
 
             if (!range) return (
                 <div className="glass-card">
                     <Logo />
-                    <h4 style={{textAlign:'center', color:'var(--gold)', marginBottom:'15px'}}>Kaza Borcu Aralığı</h4>
+                    <h4 style={{textAlign:'center', color:'var(--gold)'}}>Kaza Aralığı Seçin</h4>
                     <div className="selectors">
                         <select value={setup.startM} onChange={e => setSetup({...setup, startM: Number(e.target.value)})}>{MONTHS.map((m, i) => <option key={i} value={i}>{m}</option>)}</select>
-                        <select value={setup.startY} onChange={e => setSetup({...setup, startY: Number(e.target.value)})}>{[...Array(50)].map((_, i) => <option key={i} value={2026-i}>{2026-i}</option>)}</select>
+                        <select value={setup.startY} onChange={e => setSetup({...setup, startY: Number(e.target.value)})}>{yearOptions.map(y => <option key={y} value={y}>{y}</option>)}</select>
                     </div>
                     <div className="selectors">
                         <select value={setup.endM} onChange={e => setSetup({...setup, endM: Number(e.target.value)})}>{MONTHS.map((m, i) => <option key={i} value={i}>{m}</option>)}</select>
-                        <select value={setup.endY} onChange={e => setSetup({...setup, endY: Number(e.target.value)})}>{[...Array(50)].map((_, i) => <option key={i} value={2026-i}>{2026-i}</option>)}</select>
+                        <select value={setup.endY} onChange={e => setSetup({...setup, endY: Number(e.target.value)})}>{yearOptions.map(y => <option key={y} value={y}>{y}</option>)}</select>
                     </div>
                     <button className="btn btn-gold" onClick={() => {setRange(setup); setSelectedDate({d:1, m:setup.startM, y:setup.startY});}}>SİSTEMİ KUR</button>
-                    
-                    <div style={{marginTop:'25px', borderTop:'1px solid var(--glass-border)', paddingTop:'20px', textAlign:'center'}}>
-                        <p style={{fontSize:'12px', opacity:0.7, marginBottom:'10px'}}>Mevcut bir yedeğiniz mi var?</p>
-                        <input type="file" id="backup-upload-init" accept=".json" onChange={importBackup} />
+                    <div style={{marginTop:'25px', textAlign:'center'}}>
+                        <input type="file" id="backup-upload-init" accept=".json" onChange={e => {
+                            const f = e.target.files[0]; if(!f) return;
+                            const r = new FileReader(); r.onload = (ev) => {
+                                const p = JSON.parse(ev.target.result);
+                                if(p.range){ setData(p.data); setArchive(p.archive); setRange(p.range); setSelectedDate(findSmartStartDate(p.range, p.archive, p.data)); }
+                            }; r.readAsText(f);
+                        }} />
                         <button className="btn btn-backup" onClick={() => document.getElementById('backup-upload-init').click()}>YEDEKTEN GERİ YÜKLE</button>
                     </div>
                 </div>
             );
 
-            const yearsInRange = Array.from({length: Math.abs(range.endY - range.startY) + 1}, (_, i) => Math.min(range.startY, range.endY) + i);
-            const currentYearStats = getRemainingByYear(selectedDate.y);
+            const yearsInR = Array.from({length: Math.abs(range.endY - range.startY) + 1}, (_, i) => Math.min(range.startY, range.endY) + i);
+            const curYearS = getRemainingByYear(selectedDate.y);
 
             return (
                 <div className="glass-card">
@@ -346,31 +338,21 @@
                     </div>
 
                     <div className="selectors">
-                        <select value={selectedDate.y} onChange={e => setSelectedDate({...selectedDate, y: Number(e.target.value), d: 1})}>
-                            {yearsInRange.map(y => <option key={y} value={y}>{y}</option>)}
-                        </select>
-                        <select value={selectedDate.m} onChange={e => setSelectedDate({...selectedDate, m: Number(e.target.value), d: 1})}>
-                            {MONTHS.map((m, i) => ({ name: m, index: i }))
-                                .filter(m => !(selectedDate.y === range.startY && m.index < range.startM) && !(selectedDate.y === range.endY && m.index > range.endM))
-                                .map(m => <option key={m.index} value={m.index}>{m.name}</option>)}
-                        </select>
-                        <select value={selectedDate.d} disabled={isMonthDone(selectedDate.m, selectedDate.y)} onChange={e => setSelectedDate({...selectedDate, d: Number(e.target.value)})}>
-                            {[...Array(daysInMonth(selectedDate.m, selectedDate.y))].map((_, i) => <option key={i+1} value={i+1}>{i+1} {isDayDone(i+1, selectedDate.m, selectedDate.y) ? '✓' : ''}</option>)}
-                        </select>
+                        <select value={selectedDate.y} onChange={e => setSelectedDate({...selectedDate, y: Number(e.target.value), d: 1})}>{yearsInR.map(y => <option key={y} value={y}>{y}</option>)}</select>
+                        <select value={selectedDate.m} onChange={e => setSelectedDate({...selectedDate, m: Number(e.target.value), d: 1})}>{MONTHS.map((m, i) => ({ n: m, v: i })).filter(m => !(selectedDate.y === range.startY && m.v < range.startM) && !(selectedDate.y === range.endY && m.v > range.endM)).map(m => <option key={m.v} value={m.v}>{m.n}</option>)}</select>
+                        <select value={selectedDate.d} disabled={archive.some(a=>(a.type==='month'&&a.m===selectedDate.m&&a.y===selectedDate.y)||(a.type==='year'&&a.y===selectedDate.y))} onChange={e => setSelectedDate({...selectedDate, d: Number(e.target.value)})}>{[...Array(daysInMonth(selectedDate.m, selectedDate.y))].map((_, i) => <option key={i+1} value={i+1}>{i+1} {isDayDone(i+1, selectedDate.m, selectedDate.y) ? '✓' : ''}</option>)}</select>
                     </div>
 
                     <div style={{display:'flex', gap:'10px', marginBottom:'10px'}}>
-                        <button className="btn btn-outline" disabled={isMonthDone(selectedDate.m, selectedDate.y)} onClick={completeMonth}>Ayı Bitir</button>
-                        <button className="btn btn-outline" disabled={isYearDone(selectedDate.y)} onClick={completeYear}>Yılı Bitir</button>
+                        <button className="btn btn-outline" disabled={archive.some(a=>(a.type==='month'&&a.m===selectedDate.m&&a.y===selectedDate.y)||(a.type==='year'&&a.y===selectedDate.y))} onClick={completeMonth}>Ayı Paketle</button>
+                        <button className="btn btn-outline" disabled={archive.some(a=>a.type==='year'&&a.y===selectedDate.y)} onClick={completeYear}>Yılı Paketle</button>
                     </div>
 
                     {PRAYERS.map(p => {
-                        const dKey = `${selectedDate.d}-${selectedDate.m}-${selectedDate.y}`;
-                        const isDone = isDayDone(selectedDate.d, selectedDate.m, selectedDate.y);
-                        const chk = data[dKey]?.[p] || isDone;
+                        const dK = `${selectedDate.d}-${selectedDate.m}-${selectedDate.y}`, iD = isDayDone(selectedDate.d, selectedDate.m, selectedDate.y);
+                        const c = (data[dK]||{})[p] || iD;
                         return (
-                            <div key={p} className={`prayer-row ${chk ? 'is-checked' : ''} ${isDone ? 'disabled-row' : ''}`} 
-                                onClick={() => !isDone && setData({...data, [dKey]:{...(data[dKey]||{}), [p]:!data[dKey]?.[p]}})}>
+                            <div key={p} className={`prayer-row ${c ? 'is-checked' : ''} ${iD ? 'disabled-row' : ''}`} onClick={() => !iD && setData({...data, [dK]:{...(data[dK]||{}), [p]:!data[dK]?.[p]}})}>
                                 <div className="custom-check"></div><span>{p} Namazı</span>
                             </div>
                         );
@@ -378,70 +360,67 @@
 
                     <button className="btn btn-gold" disabled={isDayDone(selectedDate.d, selectedDate.m, selectedDate.y)} onClick={completeDay}>GÜNÜ TAMAMLA</button>
 
-                    {/* DYNAMIC REMAINING SUMMARY BASED ON SELECTED YEAR */}
-                    <h4 style={{color:'var(--gold)', margin:'25px 0 10px 0'}}>Kalan Borç Özeti ({selectedDate.y})</h4>
-                    <div className="stats-card">
-                        <div className="stats-grid">
-                            <div className="stat-box">
-                                <span className="stat-val">{currentYearStats.days}</span>
-                                <span className="stat-label">Kalan Gün</span>
-                            </div>
-                            <div className="stat-box">
-                                <span className="stat-val">{currentYearStats.prayers}</span>
-                                <span className="stat-label">Kalan Vakit</span>
-                            </div>
-                        </div>
-                    </div>
-
-                    <h4 style={{color:'var(--gold)', margin:'25px 0 10px 0'}}>Tamamlananlar</h4>
-                    <div style={{maxHeight:'160px', overflowY:'auto'}}>
+                    <h4 style={{color:'var(--gold)', margin:'25px 0 10px 0'}}>Arşiv (Paketler ve Günler)</h4>
+                    <div style={{maxHeight:'200px', overflowY:'auto'}}>
                         {archive.map((rec, i) => (
-                            <div key={i} className={`archive-item ${rec.type==='year'?'archive-year':''}`} onClick={() => setViewing(rec)}>
-                                <span>{rec.label}</span><span>{rec.type==='year'?'👑':'✓'}</span>
+                            <div key={i} className="archive-item" onClick={() => setViewing(rec)}>
+                                <div className="archive-header">
+                                    <span><span className="archive-type-tag">{TYPE_LABELS[rec.type]}</span>{rec.label}</span>
+                                    <span>{rec.type === 'day' ? '✓' : '📦'}</span>
+                                </div>
+                                <div className="completion-date">Paket Kaydı: {rec.completedAt}</div>
                             </div>
                         ))}
                     </div>
 
+                    <div className="stats-card"><div className="stats-grid"><div className="stat-box"><span className="stat-val">{curYearS.days}</span><span className="stat-label">Kalan Gün</span></div><div className="stat-box"><span className="stat-val">{curYearS.prayers}</span><span className="stat-label">Kalan Vakit</span></div></div></div>
+
                     <div style={{marginTop:'25px', borderTop:'1px solid var(--glass-border)', paddingTop:'15px'}}>
-                        <button className="btn btn-backup" onClick={exportBackup}>VERİLERİ YEDEKLE (JSON)</button>
-                        <input type="file" id="backup-upload" accept=".json" onChange={importBackup} />
-                        <button className="btn btn-outline" style={{marginTop:'10px'}} onClick={() => document.getElementById('backup-upload').click()}>YEDEK DOSYASI YÜKLE</button>
+                        <button className="btn btn-backup" onClick={() => {
+                            const b = new Blob([JSON.stringify({ data, archive, range })], { type: 'application/json' });
+                            const l = document.createElement('a'); l.href = URL.createObjectURL(b); l.download = `kaza_yedek.json`; l.click();
+                        }}>YEDEK AL (JSON)</button>
+                        <input type="file" id="backup-upload" accept=".json" onChange={e => {
+                             const f = e.target.files[0]; if(!f) return;
+                             const r = new FileReader(); r.onload = (ev) => {
+                                 const p = JSON.parse(ev.target.result);
+                                 if(p.range){ setData(p.data); setArchive(p.archive); setRange(p.range); setSelectedDate(findSmartStartDate(p.range, p.archive, p.data)); }
+                             }; r.readAsText(f);
+                        }} />
+                        <button className="btn btn-outline" style={{marginTop:'10px'}} onClick={() => document.getElementById('backup-upload').click()}>YEDEK YÜKLE</button>
                     </div>
+                    <button className="btn btn-gold" style={{background:'transparent', color:'var(--danger)', border:'1px solid rgba(239,68,68,0.3)', fontSize:'11px', marginTop:'20px'}} onClick={()=> {if(confirm("Sıfırlansın mı?")) {localStorage.removeItem(STORAGE_KEY); window.location.reload();}}}>SİSTEMİ SIFIRLA</button>
 
-                    <button className="btn btn-gold" style={{background:'transparent', color:'var(--danger)', border:'1px solid rgba(239, 68, 68, 0.3)', fontSize:'11px', marginTop:'25px'}} onClick={handleReset}>SİSTEMİ SIFIRLA</button>
-
-                    {interimSuccess && (
-                        <div className="overlay" style={{background:'rgba(0,0,0,0.4)'}}>
-                            <div className="modal" style={{padding:'20px'}}><div style={{fontSize:'2.5rem'}}>👏</div><div className="congrats-title" style={{fontSize:'1.2rem'}}>{interimSuccess}</div></div>
-                        </div>
-                    )}
+                    {interimSuccess && <div className="overlay" style={{background:'rgba(0,0,0,0.4)'}}><div className="modal" style={{padding:'20px'}}><div style={{fontSize:'2rem'}}>👏</div><div className="congrats-title" style={{fontSize:'1.2rem'}}>{interimSuccess}</div></div></div>}
 
                     {viewing && (
                         <div className="overlay" onClick={() => setViewing(null)}>
                             <div className="modal" onClick={e => e.stopPropagation()}>
-                                <div className="congrats-title">{viewing.type==='year'?'🏆':'✨'}</div>
-                                <div style={{color:'white', opacity:0.9, marginBottom:'20px'}}>{viewing.label} Tamamlandı!</div>
-                                <button className="btn btn-gold" onClick={() => handleShare(`${viewing.label} kaza borcumu başarıyla tamamladım. Elhamdülillah!`)}>BAŞARIMI PAYLAŞ</button>
-                                <button className="btn btn-outline" style={{marginTop:'10px'}} onClick={() => setViewing(null)}>KAPAT</button>
-                            </div>
-                        </div>
-                    )}
-
-                    {showFinalCelebration && (
-                        <div className="overlay">
-                            <div className="modal">
-                                <div style={{fontSize:'4rem', marginBottom:'10px'}}>🕋</div>
-                                <div className="congrats-title">MÜJDELER OLSUN!</div>
-                                <div className="congrats-sub">Niyet ettiğin tüm kaza borçlarını sabır and azimle tamamladın. Rabbim kabul eylesin, dualarını makbul kılsın.</div>
-                                <button className="btn btn-gold" onClick={() => handleShare(`Elhamdülillah! Tüm kaza namazlarımı bitirdim. Bu manevi huzura ortak olmak isteyenlere tavsiye ederim: ${window.location.href}`)}>BU SEVİNCİ PAYLAŞ 🚀</button>
-                                <button className="btn btn-outline" style={{marginTop:'10px'}} onClick={() => setShowFinalCelebration(false)}>KAPAT</button>
+                                <div className="congrats-title">{viewing.type==='year'?'🏆':'📦'}</div>
+                                <h3 style={{color:'var(--gold)', margin:'0'}}>{viewing.label}</h3>
+                                <div className="history-container">
+                                    <table className="history-table">
+                                        <thead><tr><th>Borç Günü</th><th>Tamamlanma</th></tr></thead>
+                                    </table>
+                                    <div className="history-scroll">
+                                        <table className="history-table">
+                                            <tbody>
+                                                {viewing.type === 'day' ? (
+                                                    <tr><td>{viewing.label}</td><td>{viewing.completedAt}</td></tr>
+                                                ) : (
+                                                    viewing.days && viewing.days.map((d, idx) => (<tr key={idx}><td>{d.label}</td><td>{d.date}</td></tr>))
+                                                )}
+                                            </tbody>
+                                        </table>
+                                    </div>
+                                </div>
+                                <button className="btn btn-outline" onClick={() => setViewing(null)}>KAPAT</button>
                             </div>
                         </div>
                     )}
                 </div>
             );
         }
-
         const root = ReactDOM.createRoot(document.getElementById('root'));
         root.render(<App />);
     </script>
