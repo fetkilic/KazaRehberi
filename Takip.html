@@ -1,0 +1,1161 @@
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="format-detection" content="telephone=no, date=no, address=no, email=no">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<title>Hatim Takip Listesi</title>
+<style>
+  :root{
+    --bg:#0b1020;--bg2:#0f1830;--card:#1a2238;--card-hover:#212c47;
+    --text:#e8edf7;--muted:#9aa7c2;--blue:#3b82f6;--yellow:#f5c518;
+    --green:#16a34a;--green-l:#22c55e;--green-bg:#0f2a1a;--line:#26314e;
+  }
+  *{box-sizing:border-box;-webkit-tap-highlight-color:transparent;}
+  body{
+    margin:0;font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;
+    background:radial-gradient(1200px 600px at 50% -10%,#13203f 0%,var(--bg) 55%);
+    color:var(--text);min-height:100vh;padding:24px 16px 60px;
+  }
+  .wrap{max-width:1180px;margin:0 auto;}
+  header{text-align:center;padding:10px 0 4px;}
+  h1{margin:0;font-size:clamp(24px,4vw,38px);font-weight:800;letter-spacing:.5px;color:#5b9dff;}
+  .dedication{margin:12px 0 0;font-size:15.5px;color:#cdd7ea;font-weight:500;}
+  .dedication strong{color:#d9b44a;font-weight:800;letter-spacing:.5px;}
+  .dedication .nick{color:var(--muted);font-weight:600;}
+  .dedication .fatiha{display:block;margin-top:4px;font-size:13px;color:var(--muted);font-style:italic;}
+  .warn{margin:14px 0 0;color:var(--yellow);font-size:13.5px;font-weight:600;}
+  .divider{height:1px;background:var(--line);margin:18px 0 24px;}
+  .status{display:inline-block;margin:14px auto 0;font-size:12.5px;font-weight:700;
+    padding:5px 12px;border-radius:999px;border:1px solid var(--line);color:var(--muted);}
+  .status.ok{color:var(--green-l);border-color:#1f6b3a;background:rgba(34,197,94,.08);}
+  .status.connecting{color:var(--yellow);}
+  .status.offline{color:#ff8a5b;border-color:#5a2f2f;}
+  .status.local{color:#5b9dff;}
+
+  .hatim-section{margin-bottom:38px;}
+  .sec-head{
+    display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap;
+    margin-bottom:16px;padding-bottom:12px;border-bottom:1px solid var(--line);
+  }
+  .sec-title{font-size:21px;font-weight:800;color:#5b9dff;letter-spacing:.5px;}
+  .sec-right{display:flex;align-items:center;gap:12px;}
+  .sec-date{font-size:13px;color:var(--muted);}
+  .sec-date b{color:#ff6b6b;}
+  .sec-del{flex:none;width:30px;height:30px;border-radius:8px;border:1px solid var(--line);
+    background:transparent;color:var(--muted);font-size:13px;font-weight:700;cursor:pointer;line-height:1;transition:all .15s ease;}
+  .sec-del:hover{border-color:#ff6b6b;color:#ff6b6b;background:rgba(255,107,107,.08);}
+
+  .grid{display:grid;grid-template-columns:repeat(3,1fr);grid-template-rows:repeat(10,auto);grid-auto-flow:column;gap:14px 24px;}
+  @media(max-width:880px){.grid{grid-template-columns:1fr;grid-template-rows:none;grid-auto-flow:row;}}
+
+  .row{
+    display:flex;align-items:center;justify-content:space-between;gap:12px;
+    background:var(--card);border:1px solid var(--line);border-radius:12px;
+    padding:14px 16px;cursor:pointer;user-select:none;
+    transition:background .15s ease,border-color .15s ease,transform .08s ease;
+  }
+  .row:hover{background:var(--card-hover);}
+  .row:active{transform:scale(.99);}
+  .name{font-size:16px;font-weight:700;letter-spacing:.3px;}
+  .badge{
+    flex:none;min-width:46px;text-align:center;font-weight:800;font-size:15px;color:#fff;
+    background:var(--blue);border-radius:8px;padding:6px 10px;
+    display:inline-flex;align-items:center;justify-content:center;gap:4px;
+  }
+  .badge.secde{background:var(--yellow);color:#1c1606;}
+  .secde-icon{font-size:13px;line-height:1;}
+  .row.done{background:var(--green-bg);border-color:#1f6b3a;}
+  .row.done:hover{background:#123421;}
+  .row.done .name{color:var(--green-l);}
+  .row.done .badge{background:var(--green) !important;color:#fff !important;}
+  .check{
+    flex:none;width:24px;height:24px;border-radius:50%;border:2px solid #3a4666;
+    display:inline-flex;align-items:center;justify-content:center;
+    font-size:14px;color:transparent;transition:all .15s ease;
+  }
+  .row.done .check{background:var(--green-l);border-color:var(--green-l);color:#fff;}
+  .left{display:flex;align-items:center;gap:12px;min-width:0;}
+  .badge-okundu{
+    display:none;font-size:11px;font-weight:700;color:var(--green-l);
+    background:rgba(34,197,94,.12);border:1px solid #1f6b3a;
+    padding:2px 7px;border-radius:6px;margin-left:8px;white-space:nowrap;
+  }
+  .row.done .badge-okundu{display:inline-block;}
+
+  .mini{margin-top:16px;background:var(--card);border:1px solid var(--line);border-radius:12px;padding:14px 16px;}
+  .mini-row{display:flex;align-items:center;gap:14px;font-size:14px;font-weight:700;margin-bottom:10px;}
+  .mini-read{color:var(--green-l);}
+  .mini-left{color:#ff8a5b;}
+  .mini-pct{margin-left:auto;color:var(--green-l);font-weight:800;}
+  .bar{height:12px;background:var(--bg2);border:1px solid var(--line);border-radius:999px;overflow:hidden;}
+  .bar-fill{height:100%;width:0;background:linear-gradient(90deg,#16a34a,#22c55e);border-radius:999px;transition:width .4s ease;}
+
+  .done-banner{
+    display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap;
+    margin-top:14px;background:rgba(34,197,94,.1);border:1px solid #1f6b3a;border-radius:12px;padding:12px 16px;
+  }
+  .done-banner .txt{color:var(--green-l);font-weight:800;}
+
+  .controls{display:flex;gap:10px;justify-content:center;flex-wrap:wrap;margin-top:8px;}
+  .btn{border:1px solid var(--line);background:transparent;color:var(--muted);
+    padding:11px 18px;border-radius:10px;font-size:14px;font-weight:700;cursor:pointer;transition:all .15s ease;}
+  .btn:hover{border-color:#5b9dff;color:#5b9dff;}
+  .btn.add{background:#16233f;border-color:#2c4a7a;color:#9fc3ff;}
+  .btn.add:hover{background:#1c2e52;border-color:#3b82f6;color:#cfe0ff;}
+  .btn.reset:hover{border-color:#ff6b6b;color:#ff6b6b;}
+  .btn.wa{background:#0c3b34;border-color:#128C7E;color:#cffaef;}
+  .btn.wa:hover{background:#10564b;border-color:#25D366;color:#eafff8;}
+  .mini .btn.wa{width:100%;margin-top:14px;}
+
+  /* arşiv */
+  .archive{margin-top:30px;border-top:1px solid var(--line);padding-top:22px;}
+  .arch-head{
+    width:100%;text-align:left;background:var(--card);border:1px solid var(--line);color:var(--text);
+    padding:15px 18px;border-radius:12px;font-size:15px;font-weight:800;cursor:pointer;
+    display:flex;justify-content:space-between;align-items:center;gap:10px;
+  }
+  .arch-head:hover{background:var(--card-hover);}
+  .arch-item{margin-top:12px;background:var(--bg2);border:1px solid var(--line);border-radius:12px;padding:14px 16px;}
+  .arch-row{display:flex;align-items:center;gap:12px;flex-wrap:wrap;}
+  .arch-title{font-weight:800;color:var(--green-l);}
+  .arch-date{font-size:13px;color:var(--muted);}
+  .arch-actions{margin-left:auto;display:flex;gap:8px;}
+  .arch-actions .btn{padding:7px 12px;font-size:13px;}
+  .arch-item .grid{margin-top:14px;}
+  .archive .row{cursor:default;}
+  footer{text-align:center;color:#566080;font-size:12px;margin-top:30px;}
+
+  /* sekmeler */
+  .tabs{display:flex;gap:8px;overflow-x:auto;padding:10px 2px 12px;margin-bottom:14px;
+    position:sticky;top:0;z-index:50;background:var(--bg);border-bottom:1px solid var(--line);
+    -webkit-overflow-scrolling:touch;scrollbar-width:thin;}
+  .tabs::-webkit-scrollbar{height:6px;}
+  .tabs::-webkit-scrollbar-thumb{background:var(--line);border-radius:3px;}
+  .tab{flex:0 0 auto;min-width:104px;background:var(--card);border:1px solid var(--line);border-radius:12px;
+    padding:10px 14px 8px;cursor:pointer;display:flex;flex-direction:column;gap:6px;align-items:flex-start;
+    transition:background .15s,border-color .15s;}
+  .tab:hover{background:var(--card-hover);}
+  .tab.active{border-color:#3b82f6;background:#16233f;box-shadow:0 0 0 1px #3b82f6 inset;}
+  .tab-no{font-size:14px;font-weight:800;color:var(--text);white-space:nowrap;}
+  .tab.active .tab-no{color:#9fc3ff;}
+  .tab-prog{font-size:11.5px;font-weight:700;color:var(--muted);white-space:nowrap;}
+  .tab.done .tab-prog{color:var(--green-l);}
+  .tab-bar{width:100%;height:4px;background:var(--bg2);border-radius:999px;overflow:hidden;}
+  .tab-fill{display:block;height:100%;background:linear-gradient(90deg,#16a34a,#22c55e);border-radius:999px;}
+  .tab.active .tab-fill{background:linear-gradient(90deg,#3b82f6,#60a5fa);}
+  .tab-add{min-width:80px;align-items:center;justify-content:center;gap:3px;border-style:dashed;color:var(--muted);}
+  .tab-add:hover{border-color:#3b82f6;color:#9fc3ff;}
+  .tab-plus{font-size:20px;font-weight:800;line-height:1;}
+  .empty{text-align:center;color:var(--muted);padding:46px 20px;font-size:15px;line-height:1.6;
+    background:var(--card);border:1px solid var(--line);border-radius:14px;}
+
+  /* özel onay penceresi */
+  .modal-overlay{position:fixed;inset:0;background:rgba(5,8,18,.74);backdrop-filter:blur(3px);
+    display:flex;align-items:center;justify-content:center;padding:20px;z-index:1000;}
+  .modal-overlay[hidden]{display:none;}
+  .modal-card{background:var(--card);border:1px solid var(--line);border-radius:16px;max-width:400px;width:100%;
+    padding:22px 22px 18px;box-shadow:0 24px 70px rgba(0,0,0,.55);animation:pop .15s ease;}
+  @keyframes pop{from{transform:scale(.94);opacity:0}to{transform:scale(1);opacity:1}}
+  .modal-title{font-size:17px;font-weight:800;color:var(--text);margin-bottom:12px;}
+  .modal-body{font-size:15px;color:var(--muted);line-height:1.55;margin-bottom:22px;}
+  .modal-body .hl{color:#5b9dff;font-weight:800;}
+  .modal-body .nm{color:var(--text);font-weight:700;}
+  .modal-actions{display:flex;gap:10px;justify-content:flex-end;}
+  .modal-actions .btn{min-width:96px;padding:11px 16px;}
+  .modal-ok{background:var(--green);border-color:var(--green);color:#fff;}
+  .modal-ok:hover{background:var(--green-l);border-color:var(--green-l);color:#fff;}
+  .modal-ok.danger{background:#b91c1c;border-color:#b91c1c;color:#fff;}
+  .modal-ok.danger:hover{background:#dc2626;border-color:#dc2626;color:#fff;}
+  .modal-card.wide{max-width:480px;}
+  .admin-input{flex:1 1 120px;min-width:90px;background:var(--bg2);border:1px solid var(--line);color:var(--text);
+    border-radius:8px;padding:9px 11px;font-size:14px;font-weight:600;}
+  .admin-input:focus{outline:none;border-color:#5b9dff;}
+  .admin-note{font-size:13px;color:var(--muted);line-height:1.5;margin-bottom:14px;
+    background:var(--bg2);border:1px solid var(--line);border-radius:10px;padding:10px 12px;}
+  .admin-list{max-height:52vh;overflow-y:auto;display:flex;flex-direction:column;gap:8px;padding-right:4px;}
+  .admin-row{display:flex;align-items:center;gap:10px;flex-wrap:wrap;}
+  .admin-no{flex:none;width:26px;text-align:right;color:var(--muted);font-weight:700;font-size:13px;}
+  .admin-toggle{flex:none;min-width:62px;padding:8px 10px;border-radius:8px;font-size:12.5px;font-weight:800;
+    cursor:pointer;border:1px solid var(--line);background:var(--bg2);color:var(--muted);transition:all .15s;}
+  .admin-toggle.on{background:rgba(34,197,94,.12);border-color:#1f6b3a;color:var(--green-l);}
+  .admin-dbl{flex:none;min-width:42px;padding:8px 10px;border-radius:8px;font-size:12.5px;font-weight:800;
+    cursor:pointer;border:1px solid var(--line);background:var(--bg2);color:var(--muted);transition:all .15s;}
+  .admin-dbl.on{background:rgba(217,180,74,.16);border-color:#7a5f1f;color:#e9c45a;}
+  .row-right{display:flex;align-items:center;gap:8px;flex:none;}
+  .reassign-btn{flex:none;width:28px;height:28px;border-radius:7px;border:1px solid var(--line);
+    background:var(--bg2);color:var(--muted);font-size:13px;cursor:pointer;line-height:1;transition:all .15s;}
+  .reassign-btn:hover{border-color:#5b9dff;color:#9fc3ff;}
+  .pick-list{display:flex;flex-direction:column;gap:8px;max-height:52vh;overflow-y:auto;padding-right:4px;}
+  .pick-btn{text-align:left;background:var(--bg2);border:1px solid var(--line);color:var(--text);
+    padding:11px 14px;border-radius:10px;font-size:14px;font-weight:700;cursor:pointer;transition:all .15s;}
+  .pick-btn:hover{background:var(--card-hover);border-color:#5b9dff;}
+  .pick-btn.cur{border-color:#3b82f6;color:#9fc3ff;}
+  .pick-btn.auto{color:var(--muted);border-style:dashed;}
+  .name.clickable{cursor:pointer;border-bottom:1px dashed transparent;}
+  .name.clickable:hover{border-bottom-color:#5b9dff;}
+  .row.locked{opacity:.5;}
+  .row.locked .check{border-color:var(--line);}
+  .lockmark{font-size:12px;opacity:.8;}
+  .btn.wa-rem{background:#0b3d2e;border-color:#1f7a55;color:#9ff0c4;margin-top:8px;}
+  .btn.wa-rem:hover{background:#0e4a37;}
+  .rem-list{display:flex;flex-direction:column;gap:6px;max-height:42vh;overflow-y:auto;padding-right:4px;margin-bottom:14px;}
+  .rem-row{display:flex;align-items:center;justify-content:space-between;gap:12px;
+    background:var(--bg2);border:1px solid var(--line);border-radius:9px;padding:9px 12px;}
+  .rem-name{font-weight:700;color:var(--text);font-size:14px;}
+  .rem-cuz{color:#9fc3ff;font-size:12.5px;font-weight:700;}
+  .btn.whoami{background:#1a2740;border-color:#2f4368;}
+  .lg-list{display:flex;flex-direction:column;gap:8px;max-height:56vh;overflow-y:auto;padding-right:4px;margin-bottom:12px;}
+  .lg-row{background:var(--bg2);border:1px solid var(--line);border-radius:10px;padding:10px 12px;}
+  .lg-top{display:flex;align-items:center;justify-content:space-between;gap:10px;margin-bottom:3px;}
+  .lg-name{font-weight:800;color:var(--text);font-size:14px;}
+  .lg-act{font-size:11px;font-weight:800;padding:2px 8px;border-radius:20px;}
+  .lg-act.ok{background:rgba(34,197,94,.16);color:var(--green-l);}
+  .lg-act.undo{background:rgba(239,68,68,.16);color:#fca5a5;}
+  .lg-mid{font-size:13px;color:#9fc3ff;font-weight:700;}
+  .lg-bot{font-size:12px;color:var(--muted);margin-top:2px;}
+  .prof-summary{font-size:14px;color:var(--text);margin-bottom:14px;}
+  .prof-summary b{color:#5b9dff;}
+  .prof-empty{color:var(--muted);text-align:center;padding:20px 0;}
+  .prof-list{display:flex;flex-direction:column;gap:14px;max-height:54vh;overflow-y:auto;padding-right:4px;}
+  .prof-hatim{background:var(--bg2);border:1px solid var(--line);border-radius:12px;padding:12px 14px;}
+  .prof-hatim-t{font-size:14px;font-weight:800;color:#9fc3ff;margin-bottom:8px;}
+  .prof-row{display:flex;align-items:center;justify-content:space-between;gap:12px;padding:4px 0;font-size:13.5px;}
+  .prof-cuz{font-weight:700;color:var(--green-l);}
+  .prof-date{color:var(--muted);font-size:12.5px;}
+  .admin-row.off .admin-input{opacity:.5;text-decoration:line-through;}
+  .admin-add{margin-top:12px;width:100%;border-style:dashed;color:#9fc3ff;border-color:#2c4a7a;}
+  .admin-add:hover{border-color:#3b82f6;color:#cfe0ff;}
+  .celebrate{font-size:15px;color:var(--text);line-height:1.65;}
+  .celebrate b{color:#d9b44a;}
+  .celebrate .dua{display:inline-block;color:var(--green-l);font-weight:800;margin-top:2px;}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header>
+    <h1>HATİM TAKİP LİSTESİ</h1>
+    <p class="dedication">Merhum <strong>HAFIZ HALİL KILIÇ</strong> <span class="nick">(HACIBABAMIZ)</span> ruhuna ithafen
+      <span class="fatiha">El-Fâtiha</span></p>
+    <p class="warn">⚠️ Sarı renkli cüzlerde Tilavet Secdesi bulunmaktadır. (19. ve 30. cüzlerde 2 adet secde vardır)</p>
+    <div class="status connecting" id="status">🟡 Bağlanıyor…</div>
+  </header>
+  <div class="divider"></div>
+
+  <div id="app"></div>
+
+  <footer>Bir cüzü "okundu" işaretlemek için karta dokunun. Her yeni hatimde okuyucuların cüzü bir ileri kayar. Firebase bağlıyken işaretlemeler tüm aileyle gerçek zamanlı paylaşılır.</footer>
+</div>
+
+<div class="modal-overlay" id="modal" hidden>
+  <div class="modal-card">
+    <div class="modal-title" id="modalTitle"></div>
+    <div class="modal-body" id="modalBody"></div>
+    <div class="modal-actions">
+      <button class="btn" id="modalCancel">İptal</button>
+      <button class="btn modal-ok" id="modalOk">Onayla</button>
+    </div>
+  </div>
+</div>
+
+<script src="https://www.gstatic.com/firebasejs/12.15.0/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/12.15.0/firebase-database-compat.js"></script>
+<script>
+/* ---- İsimler (1. hatim sırası: ilk kişi 1. cüz, son kişi 30. cüz) ---- */
+const names = [
+  "BÜNYAMİN KILIÇ","MERYEM KILIÇ","HAFIZ HÜSEYİN KILIÇ","GÜLFİKAR KAYA","ZEYNEP KILIÇ ÇABUK",
+  "RUKİYE ZENGÜL","NİGAR ÇAKIR","RECEP KAYA","EMİNE KILIÇ","SEYFULLAH KILIÇ",
+  "ASİYE KILIÇ","YAHYA KILIÇ","ELİF KILIÇ","SAFURA TOK","FAHREDDİN KILIÇ",
+  "ELMAS KILIÇ","FETULLAH KILIÇ","ABDURRAHMAN KILIÇ","HASAN KILIÇ","FATMA KILIÇ",
+  "AYŞE KILIÇ","SEVDA DIŞIKITLI","GÜLSEN DEMİRDAŞ","LÜTFULLAH KILIÇ","GÜLSENEM KILIÇ",
+  "AHMED KILIÇ","YUSUF KILIÇ","ZEYNEP KILIÇ","ZELİHA ÖZDEMİR","GÜLSÜM GÖZEK"
+];
+
+const SECDE = {9:1,13:1,14:1,15:1,16:1,17:1,19:2,21:1,27:1,30:2};
+/* h. hatimde c. cüzü okuyan kişinin sıra no'su (rotasyonun tersi) */
+function personFor(c, h){ return (((c - h) % 30) + 30) % 30; }
+
+/* ---- Admin / isim sürümleme ---- */
+const ADMIN_PASS = "Hacibaba!";
+let isAdmin = false;
+function escAttr(s){ return String(s).replace(/&/g,'&amp;').replace(/"/g,'&quot;').replace(/</g,'&lt;'); }
+/* i. katılımcının güncel (canlı) ismi: admin değişikliği varsa o, yoksa varsayılan */
+function liveName(i){
+  if(state.names && state.names[i] != null && state.names[i] !== "") return state.names[i];
+  if(i < 30) return names[i];
+  return "Katılımcı " + (i+1);
+}
+function participantCount(){ return (state.pcount && state.pcount > 30) ? state.pcount : 30; }
+function isInactive(i){ return !!(state.inactive && state.inactive[i]); }
+function isDouble(i){ return !!(state.double && state.double[i]); }
+function activeList(){ const a = []; const M = participantCount(); for(let i=0;i<M;i++){ if(!isInactive(i)) a.push(i); } return a; }
+/* h. hatimde c. cüzü okuyan katılımcının index'i.
+   N<30 ise fazladan cüzler ÖNCE "2 cüz okurum" diyen gönüllülere, sonra en sondaki okuyuculara verilir. */
+function assignedIndex(c, h){
+  const list = activeList();
+  const N = list.length;
+  if(N === 0) return null;
+  const rot = (((h - 1) % N) + N) % N;
+  const base = Math.floor(30 / N), rem = 30 % N;
+  const reps = {};
+  list.forEach(function(idx){ reps[idx] = base; });
+  let extra = rem;
+  // 1) önce gönüllüler (2 cüz okurum diyenler) — gönüllü sayısı fazlaysa haftaya göre DÖNDÜR,
+  //    böylece her hatim farklı gönüllü(ler) 2. cüzü okur
+  const dbls = list.filter(function(idx){ return isDouble(idx); });
+  const D = dbls.length;
+  if(D > 0){
+    const startD = (((h - 1) % D) + D) % D;
+    for(let k = 0; k < D && extra > 0; k++){
+      const idx = dbls[(startD + k) % D];
+      reps[idx]++; extra--;
+    }
+  }
+  // 2) kalan fazlalık: en sondaki (gönüllü olmayan) okuyuculara
+  for(let p = N - 1; p >= 0 && extra > 0; p--){
+    const idx = list[(((p - rot) % N) + N) % N];
+    if(!isDouble(idx) && reps[idx] === base){ reps[idx]++; extra--; }
+  }
+  // 3) uç durum: hâlâ fazlalık varsa en sondan doldur
+  for(let p = N - 1; p >= 0 && extra > 0; p--){ const idx = list[(((p - rot) % N) + N) % N]; reps[idx]++; extra--; }
+  // cüzleri sırayla (rotasyonlu) pozisyonlara dağıt
+  let cuz = 1;
+  for(let p = 0; p < N; p++){
+    const idx = list[(((p - rot) % N) + N) % N];
+    for(let r = 0; r < reps[idx]; r++){
+      if(cuz === c) return idx;
+      cuz++;
+    }
+  }
+  return null;
+}
+/* h. hatimde i. katılımcının ismi: o hatim donduruldu (snapshot) ise eski isim, değilse canlı isim */
+function nameFor(i, h){
+  if(state.snapshots && state.snapshots[h] && state.snapshots[h][i] != null) return state.snapshots[h][i];
+  return liveName(i);
+}
+/* Kimlik seçilmişse kişi yalnızca kendi cüzüne dokunabilir (admin hariç) */
+function isMyCuz(h, c){
+  if(isAdmin) return true;
+  const me = myIdentity();
+  if(!me) return true;
+  if(isDone(h, c)) return readerName(h, c) === me.name;
+  return effectiveIndex(c, h) === me.idx;
+}
+/* Bu hatimde bu cüzü kim okuyacak: admin manuel atama (override) varsa o, yoksa otomatik */
+function effectiveIndex(c, h){
+  if(state.overrides && state.overrides[h] && state.overrides[h][c] != null) return state.overrides[h][c];
+  return assignedIndex(c, h);
+}
+/* Tamamlanmış bir cüzü okuyanın adı: kayıtlıysa kilitli ad; yoksa (eski kayıt)
+   orijinal rotasyona göre geri-doldur — böylece kişi profilinde/listede doğru görünür */
+function readerName(h, c){
+  if(state.readers && state.readers[h] && state.readers[h][c] != null && state.readers[h][c] !== "") return state.readers[h][c];
+  const i = personFor(c, h);
+  if(state.snapshots && state.snapshots[h] && state.snapshots[h][i] != null) return state.snapshots[h][i];
+  return liveName(i);
+}
+/* Gösterilecek isim: cüz okunduysa onu okuyanın adı (kilitli/orijinal), değilse güncel atama */
+function displayName(c, h){
+  if(isDone(h,c)) return readerName(h, c);
+  const i = effectiveIndex(c,h);
+  if(i == null) return '—';
+  if(state.snapshots && state.snapshots[h] && state.snapshots[h][i] != null) return state.snapshots[h][i];
+  return liveName(i);
+}
+
+const BASE = new Date(2026, 5, 25, 18, 0);
+const GUN = ["Pazar","Pazartesi","Salı","Çarşamba","Perşembe","Cuma","Cumartesi"];
+function hatimDate(h){
+  const d = new Date(BASE.getTime());
+  d.setDate(d.getDate() + (h - 1) * 7);
+  const dd = String(d.getDate()).padStart(2,'0');
+  const mm = String(d.getMonth()+1).padStart(2,'0');
+  return GUN[d.getDay()] + " " + dd + "." + mm + "." + d.getFullYear();
+}
+
+/* ---- Firebase yapılandırması (boşken sayfa yerel modda çalışır) ---- */
+const firebaseConfig = {
+  apiKey: "AIzaSyDSp5iJV-psz95rrjCNd3ccLz_-xuRvPoI",
+  authDomain: "hatim-takip-bd12a.firebaseapp.com",
+  databaseURL: "https://hatim-takip-bd12a-default-rtdb.europe-west1.firebasedatabase.app",
+  projectId: "hatim-takip-bd12a",
+  storageBucket: "hatim-takip-bd12a.firebasestorage.app",
+  messagingSenderId: "765316268052",
+  appId: "1:765316268052:web:93196df559c15be84ae701"
+};
+const useFirebase = firebaseConfig.databaseURL
+  && firebaseConfig.databaseURL.indexOf("BURAYA") === -1
+  && typeof firebase !== "undefined";
+let db = null;
+function fbRoot(){ return db.ref('hatim'); }
+function fbPath(p){ return db.ref('hatim/' + p); }
+function setStatus(s){
+  const el = document.getElementById('status'); if(!el) return;
+  el.className = 'status ' + s;
+  el.textContent = ({
+    ok:'🟢 Senkronize · canlı', connecting:'🟡 Bağlanıyor…',
+    offline:'🔴 Bağlantı yok', local:'⚪ Yerel mod · sadece bu cihaz'
+  })[s] || s;
+}
+
+/* ---- Durum (localStorage) ---- */
+const KEY = "hatim_state_v2";
+function load(){
+  let st = null;
+  try{ const r = localStorage.getItem(KEY); if(r) st = JSON.parse(r); }catch(e){}
+  if(!st){
+    st = {hatimCount:1, done:{}, archived:[]};
+    try{
+      const old = JSON.parse(localStorage.getItem("hatim1_okunan"));
+      if(old && typeof old === "object"){
+        st.done["1"] = {};
+        Object.keys(old).forEach(k=>{ if(old[k]) st.done["1"][k] = true; });
+      }
+    }catch(e){}
+  }
+  if(typeof st.hatimCount !== "number") st.hatimCount = 1;
+  if(!st.done) st.done = {};
+  if(!Array.isArray(st.archived)) st.archived = [];
+  if(!Array.isArray(st.removed)) st.removed = [];
+  if(!st.names) st.names = {};
+  if(!st.snapshots) st.snapshots = {};
+  if(!st.readers) st.readers = {};
+  if(!st.times) st.times = {};
+  if(!st.inactive) st.inactive = {};
+  if(!st.double) st.double = {};
+  if(!st.overrides) st.overrides = {};
+  if(!st.pcount) st.pcount = 30;
+  return st;
+}
+let state = {hatimCount:1, done:{}, archived:[], removed:[], names:{}, snapshots:{}, readers:{}, times:{}, inactive:{}, double:{}, overrides:{}, pcount:30};
+if(!useFirebase){ state = load(); }
+function save(){ window.__state = state; try{ localStorage.setItem(KEY, JSON.stringify(state)); }catch(e){} }
+
+function isDone(h,cuz){ return !!(state.done[h] && state.done[h][cuz]); }
+function setDone(h,cuz,val){
+  if(!state.done[h]) state.done[h] = {};
+  if(val) state.done[h][cuz] = true; else delete state.done[h][cuz];
+  save();
+}
+function countDone(h){ const o = state.done[h] || {}; return Object.keys(o).filter(k=>o[k]).length; }
+function isArchived(h){ return state.archived.indexOf(h) !== -1; }
+function isRemoved(h){ return state.removed.indexOf(h) !== -1; }
+
+/* Firebase anlık görüntüsünü yerel state'e çevirir */
+function applySnap(val){
+  val = val || {};
+  state.hatimCount = (val.meta && val.meta.hatimCount) || 1;
+  state.done = val.done || {};
+  state.archived = val.archived ? Object.keys(val.archived).filter(k=>val.archived[k]).map(Number) : [];
+  state.removed = val.removed ? Object.keys(val.removed).filter(k=>val.removed[k]).map(Number) : [];
+  state.names = val.names || {};
+  state.snapshots = val.snapshots || {};
+  state.readers = val.readers || {};
+  state.times = val.times || {};
+  state.inactive = val.inactive || {};
+  state.double = val.double || {};
+  state.overrides = val.overrides || {};
+  state.pcount = val.pcount || 30;
+  if(state.hatimCount < 1) state.hatimCount = 1;
+  render();
+  detectCompletions();
+}
+
+/* ---- UI durumu (kaydedilmez) ---- */
+let archiveOpen = false;
+let expanded = {};
+let scrollTarget = null;
+let activeHatim = null;
+let userPicked = false;
+const app = document.getElementById('app');
+
+/* ---- Özel onay penceresi ---- */
+const modal = document.getElementById('modal');
+const modalCard = modal.querySelector('.modal-card');
+let modalOnOk = null;
+function uiConfirm(opts){
+  modalCard.className = 'modal-card' + (opts.wide ? ' wide' : '');
+  document.getElementById('modalTitle').innerHTML = opts.title || 'Onay';
+  document.getElementById('modalBody').innerHTML = opts.body || '';
+  const cancel = document.getElementById('modalCancel');
+  cancel.style.display = opts.hideCancel ? 'none' : '';
+  cancel.textContent = opts.cancelText || 'İptal';
+  const ok = document.getElementById('modalOk');
+  ok.textContent = opts.okText || 'Onayla';
+  ok.className = 'btn modal-ok' + (opts.danger ? ' danger' : '');
+  modalOnOk = opts.onOk || null;
+  modal.hidden = false;
+}
+function uiAlert(title, body){ uiConfirm({title:title, body:body||'', okText:'Tamam', hideCancel:true}); }
+function closeModal(){ modal.hidden = true; modalOnOk = null; }
+document.getElementById('modalCancel').addEventListener('click', closeModal);
+document.getElementById('modalOk').addEventListener('click', function(){ const fn = modalOnOk; closeModal(); if(fn) fn(); });
+modal.addEventListener('click', function(e){
+  const b = e.target.closest('[data-action]');
+  if(b){
+    const a = b.dataset.action;
+    if(a === 'adm-toggle'){ syncAdminInputs(); const i = +b.dataset.ai; adminRows[i].active = !adminRows[i].active; showAdminPanel(); return; }
+    if(a === 'adm-double'){ syncAdminInputs(); const i = +b.dataset.ai; adminRows[i].double = !adminRows[i].double; showAdminPanel(); return; }
+    if(a === 'adm-add'){ syncAdminInputs(); adminRows.push({name:'', active:true, double:false}); showAdminPanel(); return; }
+    if(a === 'pick-reader'){ setOverride(+b.dataset.h, +b.dataset.cuz, +b.dataset.i); closeModal(); return; }
+    if(a === 'set-identity'){ setIdentity(+b.dataset.i); closeModal(); return; }
+    if(a === 'clear-identity'){ clearIdentity(); closeModal(); return; }
+  }
+  if(e.target === modal) closeModal();
+});
+
+/* ---- Admin paneli ---- */
+let adminRows = [];
+function initAdminRows(){
+  adminRows = [];
+  const M = participantCount();
+  for(let i=0;i<M;i++){ adminRows.push({ name: liveName(i), active: !isInactive(i), double: isDouble(i) }); }
+}
+function openAdmin(){
+  if(isAdmin){ initAdminRows(); showAdminPanel(); return; }
+  uiConfirm({
+    title:'🔒 Admin Girişi',
+    body:'Yönetici şifresini girin:<br><br><input id="adminPass" type="password" class="admin-input" placeholder="Şifre" autocomplete="off">',
+    okText:'Giriş',
+    onOk:function(){
+      const el = document.getElementById('adminPass');
+      const v = el ? el.value : '';
+      if(v === ADMIN_PASS){ isAdmin = true; render(); initAdminRows(); showAdminPanel(); }
+      else { uiAlert('Hatalı şifre', 'Girdiğiniz şifre yanlış.'); }
+    }
+  });
+  setTimeout(function(){ const el = document.getElementById('adminPass'); if(el) el.focus(); }, 60);
+}
+function syncAdminInputs(){
+  document.querySelectorAll('.admin-list input[data-ai]').forEach(function(inp){
+    const i = +inp.dataset.ai; if(adminRows[i]) adminRows[i].name = inp.value;
+  });
+}
+function showAdminPanel(){
+  const activeCount = adminRows.filter(function(r){ return r.active && (r.name||'').trim(); }).length;
+  const dblCount = adminRows.filter(function(r){ return r.active && r.double && (r.name||'').trim(); }).length;
+  let rows = '';
+  adminRows.forEach(function(r, i){
+    rows += '<div class="admin-row'+(r.active?'':' off')+'">'
+          + '<span class="admin-no">'+(i+1)+'.</span>'
+          + '<input class="admin-input" data-ai="'+i+'" value="'+escAttr(r.name)+'" placeholder="İsim">'
+          + '<button class="admin-toggle'+(r.active?' on':'')+'" data-action="adm-toggle" data-ai="'+i+'">'
+          + (r.active?'Aktif':'Pasif')+'</button>'
+          + '<button class="admin-dbl'+(r.double?' on':'')+'" data-action="adm-double" data-ai="'+i+'" title="2 cüz okur">2×</button>'
+          + '</div>';
+  });
+  uiConfirm({
+    wide:true,
+    title:'Admin · Katılımcılar',
+    body:'<div class="admin-note">Aktif: <b>'+activeCount+'</b> · 2 cüz okuyan: <b>'+dblCount+'</b> · toplam 30 cüz.<br>'
+        +'30’dan azsa fazladan cüzler <b>önce “2×” işaretli gönüllülere</b>, sonra en sondaki okuyuculara dağıtılır. '
+        +'“Pasif” kişiye cüz verilmez. Değişiklik aktif/sonraki hatimlere yansır; okunmuş cüzler ve arşiv eski haliyle kalır.</div>'
+        +'<div class="admin-list">'+rows+'</div>'
+        +'<button class="btn admin-add" data-action="adm-add">＋ Yeni katılımcı ekle</button>',
+    okText:'Kaydet',
+    onOk:saveAdminParticipants
+  });
+}
+function saveAdminParticipants(){
+  syncAdminInputs();
+  /* Önce tamamlanmış (30/30) ama dondurulmamış hatimleri eski isimlerle dondur */
+  for(let h=1; h<=state.hatimCount; h++){
+    if(countDone(h) === 30 && !(state.snapshots && state.snapshots[h]) && !isRemoved(h)){
+      if(useFirebase) fbPath('snapshots/'+h).set(snapNames());
+      else { state.snapshots = state.snapshots || {}; state.snapshots[h] = snapNames(); }
+    }
+  }
+  const M = adminRows.length;
+  if(useFirebase){
+    const updates = {};
+    updates['pcount'] = M;
+    for(let i=0;i<M;i++){
+      const nm = (adminRows[i].name || '').trim() || ('Katılımcı '+(i+1));
+      updates['names/'+i] = (i < 30 && nm === names[i]) ? null : nm;
+      updates['inactive/'+i] = adminRows[i].active ? null : true;
+      updates['double/'+i] = adminRows[i].double ? true : null;
+    }
+    fbRoot().update(updates);
+  } else {
+    state.pcount = M; state.names = state.names || {}; state.inactive = state.inactive || {}; state.double = state.double || {};
+    for(let i=0;i<M;i++){
+      const nm = (adminRows[i].name || '').trim() || ('Katılımcı '+(i+1));
+      if(i < 30 && nm === names[i]) delete state.names[i]; else state.names[i] = nm;
+      if(adminRows[i].active) delete state.inactive[i]; else state.inactive[i] = true;
+      if(adminRows[i].double) state.double[i] = true; else delete state.double[i];
+    }
+    save(); render();
+  }
+}
+
+function rowHTML(name, cuz, done, interactive, h){
+  const sec = SECDE[cuz];
+  const icon = sec === 2 ? '<span class="secde-icon" title="Tilavet Secdesi">۩</span>' : "";
+  const data = interactive ? (' data-h="'+h+'" data-cuz="'+cuz+'" role="button" tabindex="0"') : "";
+  const reassign = (interactive && isAdmin)
+    ? '<button class="reassign-btn" data-action="reassign" data-h="'+h+'" data-cuz="'+cuz+'" title="Bu cüzü başkasına ata">✎</button>'
+    : '';
+  const nameEl = done
+    ? '<span class="name clickable" data-action="profile" data-name="'+escAttr(name)+'">'+name+'</span>'
+    : '<span class="name">'+name+'</span>';
+  const locked = interactive && !isMyCuz(h, cuz);
+  const lockMark = locked ? '<span class="lockmark" title="Sadece kendi cüzünüz">🔒</span>' : '';
+  return '<div class="row'+(done?' done':'')+(locked?' locked':'')+'"'+data+'>'
+    + '<div class="left"><span class="check">✓</span>'
+    + nameEl
+    + '<span class="badge-okundu">✓ Okundu</span></div>'
+    + '<div class="row-right">'+lockMark+reassign+'<span class="badge'+(sec?' secde':'')+'">'+cuz+icon+'</span></div></div>';
+}
+
+function sectionHTML(h){
+  let rows = "";
+  for(let c=1;c<=30;c++){ rows += rowHTML(displayName(c,h), c, isDone(h,c), true, h); }
+  const read = countDone(h), left = 30 - read, pct = Math.round(read/30*100);
+  const banner = read === 30
+    ? '<div class="done-banner"><span class="txt">🎉 Tamamlandı — 30/30 okundu</span>'
+      + '<button class="btn add" data-action="archive" data-h="'+h+'">Arşive at</button></div>'
+    : "";
+  return '<section class="hatim-section" id="hatim-'+h+'">'
+    + '<div class="sec-head"><div class="sec-title">'+h+'. HATİM</div>'
+    + '<div class="sec-right"><span class="sec-date">Son Tarih: <b>'+hatimDate(h)+'</b> · 18:00</span>'
+    + (isAdmin ? '<button class="sec-del" data-action="del" data-h="'+h+'" title="Bu hatimi kaldır">✕</button>' : '')
+    + '</div></div>'
+    + '<div class="grid">'+rows+'</div>'
+    + '<div class="mini"><div class="mini-row"><span class="mini-read">'+read+' okundu</span>'
+    + '<span class="mini-left">'+left+' kaldı</span><span class="mini-pct">%'+pct+'</span></div>'
+    + '<div class="bar"><div class="bar-fill" style="width:'+pct+'%"></div></div>'
+    + '<button class="btn wa" data-action="share" data-h="'+h+'">📲 WhatsApp\'ta paylaş</button>'
+    + (isAdmin ? '<button class="btn wa-rem" data-action="remind" data-h="'+h+'">🔔 Okumayanlara hatırlat</button>' : '')
+    + '</div>'
+    + banner + '</section>';
+}
+
+function controlsHTML(){
+  const me = myIdentity();
+  let h = '<div class="controls">';
+  h += '<button class="btn whoami" data-action="whoami">👤 '+(me ? escAttr(me.name) : 'Kim?')+'</button>';
+  h += '<button class="btn" data-action="notif">🔔 Bildirim</button>';
+  h += '<button class="btn" data-action="admin">'+(isAdmin ? '🔓 Admin' : '🔒 Admin')+'</button>';
+  if(isAdmin){
+    h += '<button class="btn" data-action="showlog">📋 Kayıt defteri</button>';
+    h += '<button class="btn" data-action="admin-logout">Admin’den çık</button>';
+    h += '<button class="btn reset" data-action="reset">Tümünü sıfırla</button>';
+  }
+  return h + '</div>';
+}
+
+function archiveHTML(){
+  if(state.archived.length === 0) return "";
+  let inner = "";
+  if(archiveOpen){
+    state.archived.slice().sort((a,b)=>a-b).forEach(h=>{
+      const show = !!expanded[h];
+      let detail = "";
+      if(show){
+        let rows = "";
+        for(let c=1;c<=30;c++){ rows += rowHTML(displayName(c,h), c, true, false, h); }
+        detail = '<div class="grid">'+rows+'</div>';
+      }
+      inner += '<div class="arch-item"><div class="arch-row">'
+        + '<span class="arch-title">'+h+'. Hatim · ✓ Tamamlandı</span>'
+        + '<span class="arch-date">'+hatimDate(h)+'</span>'
+        + '<div class="arch-actions">'
+        + '<button class="btn" data-action="arch-show" data-h="'+h+'">'+(show?'Gizle':'Detay')+'</button>'
+        + '<button class="btn" data-action="arch-restore" data-h="'+h+'">Geri al</button>'
+        + (isAdmin ? '<button class="btn" data-action="del" data-h="'+h+'">Sil</button>' : '')
+        + '</div></div>'+detail+'</div>';
+    });
+  }
+  return '<div class="archive"><button class="arch-head" data-action="arch-toggle">'
+    + '<span>📁 Arşiv · '+state.archived.length+' tamamlanmış hatim</span>'
+    + '<span>'+(archiveOpen?'▾':'▸')+'</span></button>'+inner+'</div>';
+}
+
+/* ---- WhatsApp hatırlatma (numarasız grup mesajı) ---- */
+function remindUnread(h){
+  const byIdx = {};
+  for(let c = 1; c <= 30; c++){
+    if(isDone(h, c)) continue;
+    const i = effectiveIndex(c, h);
+    if(i == null) continue;
+    (byIdx[i] = byIdx[i] || []).push(c);
+  }
+  const idxs = Object.keys(byIdx).map(Number).sort(function(a,b){ return a-b; });
+  if(idxs.length === 0){ uiAlert(h+'. Hatim', 'Tüm cüzler okunmuş 🎉 Hatırlatılacak kimse yok.'); return; }
+
+  let preview = '';
+  let msg = '🌙 ' + h + '. Hatim hatırlatma\n\n'
+          + 'Merhum HAFIZ HALİL KILIÇ (Hacıbabamız) ruhuna okuduğumuz hatimde aşağıdaki cüzler henüz okunmadı:\n\n';
+  idxs.forEach(function(i){
+    const nm = nameFor(i, h);
+    const cuzList = byIdx[i].sort(function(a,b){ return a-b; });
+    msg += '• ' + nm + ' → ' + cuzList.join(', ') + '. cüz\n';
+    preview += '<div class="rem-row"><span class="rem-name">'+escAttr(nm)+'</span>'
+             + '<span class="rem-cuz">'+cuzList.join(', ')+'. cüz</span></div>';
+  });
+  msg += '\nMüsait olduğunuzda okuyup işaretleyebilir misiniz? Hatim duası ' + hatimDate(h) + ' akşamı yapılacaktır inşallah.\n\n'
+       + 'Allah razı olsun 🤲\n' + location.href;
+
+  const url = 'https://wa.me/?text=' + encodeURIComponent(msg);
+  uiConfirm({
+    wide:true,
+    title:'🔔 Hatırlat · '+h+'. Hatim',
+    body:'<div class="admin-note">Okunmayan cüzler aşağıda. Tek dokunuşla WhatsApp grubunda paylaşabilirsiniz.</div>'
+        +'<div class="rem-list">'+preview+'</div>'
+        +'<a class="btn wa" style="text-decoration:none;display:block;text-align:center;margin-top:4px" href="'+url+'" target="_blank" rel="noopener">📲 WhatsApp’ta paylaş</a>',
+    okText:'Kapat', hideCancel:true
+  });
+}
+
+/* ---- Okuyucu profili (okuma geçmişi) ---- */
+function fmtTime(t){
+  if(!t) return 'tarih yok';
+  const d = new Date(t);
+  const dd = String(d.getDate()).padStart(2,'0'), mm = String(d.getMonth()+1).padStart(2,'0');
+  const hh = String(d.getHours()).padStart(2,'0'), mi = String(d.getMinutes()).padStart(2,'0');
+  return dd+'.'+mm+'.'+d.getFullYear()+' '+hh+':'+mi;
+}
+function showProfile(name){
+  const items = [];
+  for(let h=1; h<=state.hatimCount; h++){
+    if(isRemoved(h)) continue;
+    const d = state.done[h] || {};
+    for(const cstr in d){
+      if(!d[cstr]) continue;
+      const c = +cstr;
+      if(readerName(h, c) === name){
+        const t = (state.times && state.times[h] && state.times[h][c]) || null;
+        items.push({ h:h, c:c, t:t });
+      }
+    }
+  }
+  let body;
+  if(items.length === 0){
+    body = '<div class="prof-empty">Bu kişi için henüz okunmuş cüz kaydı yok.</div>';
+  } else {
+    const byH = {};
+    items.forEach(function(it){ (byH[it.h] = byH[it.h] || []).push(it); });
+    body = '<div class="prof-summary">Toplam <b>'+items.length+'</b> cüz okudu.</div><div class="prof-list">';
+    Object.keys(byH).map(Number).sort(function(a,b){return a-b;}).forEach(function(h){
+      body += '<div class="prof-hatim"><div class="prof-hatim-t">'+h+'. Hatim'+(isArchived(h)?' · ✓ tamamlandı':'')+'</div>';
+      byH[h].sort(function(a,b){return a.c-b.c;}).forEach(function(it){
+        body += '<div class="prof-row"><span class="prof-cuz">'+it.c+'. cüz</span><span class="prof-date">'+fmtTime(it.t)+'</span></div>';
+      });
+      body += '</div>';
+    });
+    body += '</div>';
+  }
+  uiConfirm({ wide:true, title:'👤 '+name, body:body, okText:'Kapat', hideCancel:true });
+}
+
+/* ---- Cüz yeniden atama (admin) ---- */
+function reassign(h, cuz){
+  if(!isAdmin) return;
+  const list = activeList();
+  let rows = '<button class="pick-btn auto" data-action="pick-reader" data-h="'+h+'" data-cuz="'+cuz+'" data-i="-1">↺ Otomatik (varsayılan)</button>';
+  const cur = effectiveIndex(cuz, h);
+  list.forEach(function(i){
+    rows += '<button class="pick-btn'+(i===cur?' cur':'')+'" data-action="pick-reader" data-h="'+h+'" data-cuz="'+cuz+'" data-i="'+i+'">'+escAttr(liveName(i))+(i===cur?' ✓':'')+'</button>';
+  });
+  uiConfirm({
+    wide:true,
+    title:cuz+'. cüzü kim okuyacak?',
+    body:'<div class="admin-note">Bu atama yalnızca <b>'+h+'. hatim</b> için geçerlidir. Okunmuş cüzlerde değişmez.</div>'
+        +'<div class="pick-list">'+rows+'</div>',
+    okText:'Kapat', hideCancel:true
+  });
+}
+function setOverride(h, cuz, i){
+  if(useFirebase){
+    if(i < 0) fbPath('overrides/'+h+'/'+cuz).remove();
+    else fbPath('overrides/'+h+'/'+cuz).set(i);
+  } else {
+    state.overrides = state.overrides || {};
+    if(!state.overrides[h]) state.overrides[h] = {};
+    if(i < 0) delete state.overrides[h][cuz];
+    else state.overrides[h][cuz] = i;
+    save(); render();
+  }
+}
+
+/* ---- Hatim tamamlanma bildirimi ---- */
+let completedSet = null;
+function detectCompletions(){
+  const now = {};
+  for(let h=1; h<=state.hatimCount; h++){ if(!isRemoved(h) && countDone(h) === 30) now[h] = true; }
+  if(completedSet === null){ completedSet = now; return; }   // ilk yükleme: sessiz
+  for(const h in now){ if(!completedSet[h]) onHatimCompleted(+h); }
+  completedSet = now;
+}
+function onHatimCompleted(h){ showCompletionModal(h); osNotify(h); }
+function showCompletionModal(h){
+  uiConfirm({
+    title:'🎉 '+h+'. Hatim Tamamlandı',
+    body:'<div class="celebrate">Elhamdülillah, <b>'+h+'. hatim</b> hatmedildi.<br>'
+        +'Merhum <b>HAFIZ HALİL KILIÇ</b> (Hacıbabamız) ruhuna.<br><br>'
+        +'<span class="dua">🤲 Hatim duası Perşembe akşamı yapılacaktır.</span></div>',
+    okText:'📲 WhatsApp\'ta duyur',
+    cancelText:'Kapat',
+    onOk:function(){ shareCompletion(h); }
+  });
+}
+function osNotify(h){
+  try{
+    if('Notification' in window && Notification.permission === 'granted'){
+      new Notification(h+'. Hatim tamamlandı 🎉', { body:'Hatim duası Perşembe akşamı yapılacaktır.', tag:'hatim-'+h });
+    }
+  }catch(e){}
+}
+function shareCompletion(h){
+  let t = '🎉 '+h+'. HATİM TAMAMLANDI\n';
+  t += 'Merhum HAFIZ HALİL KILIÇ (Hacıbabamız) ruhuna hatmedildi.\n\n';
+  t += '🤲 Hatim duası Perşembe akşamı yapılacaktır.\nKatılımlarınızı bekleriz.\n\n';
+  t += '🔗 ' + location.href;
+  window.open('https://wa.me/?text=' + encodeURIComponent(t), '_blank');
+}
+function requestNotif(){
+  const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent || '');
+  if(!('Notification' in window)){
+    if(isIOS){
+      uiAlert('iPhone bildirim sınırı',
+        'iPhone’da Safari/Chrome sekmesi sistem bildirimini desteklemez (Apple sınırı).<br><br>'
+        +'Yine de uygulama açıkken bir hatim tamamlanınca <b>ekran üstü kutlama penceresi</b> çıkar. '
+        +'Ayrıca tamamlanınca <b>“WhatsApp’ta duyur”</b> ile herkese haber verebilirsiniz.');
+    } else {
+      uiAlert('Desteklenmiyor','Bu tarayıcı bildirimleri desteklemiyor.');
+    }
+    return;
+  }
+  if(Notification.permission === 'granted'){ uiAlert('Bildirim açık','Bir hatim tamamlandığında bildirim alacaksınız.'); return; }
+  Notification.requestPermission().then(function(p){
+    if(p === 'granted') uiAlert('Bildirim açık','Bir hatim tamamlandığında bildirim alacaksınız.');
+    else uiAlert('Bildirim kapalı','İzin verilmedi. Tarayıcı ayarlarından sonra açabilirsiniz.');
+  });
+}
+
+function tabsHTML(actives){
+  let t = '<div class="tabs" id="tabs">';
+  actives.forEach(h=>{
+    const read = countDone(h), pct = Math.round(read/30*100), done = read === 30;
+    t += '<button class="tab'+(h===activeHatim?' active':'')+(done?' done':'')+'" data-action="tab" data-h="'+h+'">'
+       + '<span class="tab-no">'+h+'. Hatim</span>'
+       + '<span class="tab-prog">'+(done?'✓ 30/30':read+'/30')+'</span>'
+       + '<span class="tab-bar"><span class="tab-fill" style="width:'+pct+'%"></span></span>'
+       + '</button>';
+  });
+  if(isAdmin){
+    t += '<button class="tab tab-add" data-action="add"><span class="tab-plus">＋</span><span class="tab-no">Yeni</span></button>';
+  }
+  return t + '</div>';
+}
+
+function defaultActive(actives){
+  for(let k=0;k<actives.length;k++){ if(countDone(actives[k]) < 30) return actives[k]; } // ilk bitmemiş
+  return actives.length ? actives[actives.length-1] : null;                                // hepsi bittiyse sonuncu
+}
+
+function render(){
+  const actives = [];
+  for(let h=1; h<=state.hatimCount; h++){ if(!isArchived(h) && !isRemoved(h)) actives.push(h); }
+  if(!userPicked || actives.indexOf(activeHatim) === -1){ activeHatim = defaultActive(actives); }
+
+  let out = tabsHTML(actives);
+  if(activeHatim != null) out += sectionHTML(activeHatim);
+  else out += '<div class="empty">Henüz açık hatim yok.'+(isAdmin?'<br>“＋ Yeni” ile bir hatim aç.':'')+'</div>';
+  out += controlsHTML();
+  out += archiveHTML();
+  app.innerHTML = out;
+}
+
+/* ---- Cihaz kimliği (yalnızca bu cihazda saklanır) ---- */
+/* Hiçbir şey Firebase'e yazılmaz: ne IP, ne şehir, ne cihaz bilgisi.
+   Sadece "bu cihaz kime ait" seçimi localStorage'da tutulur. */
+let myUser = null;            // { idx, name }
+let identityPrompted = false;
+function loadMe(){
+  try{ myUser = JSON.parse(localStorage.getItem('hatim_me') || 'null'); }catch(e){ myUser = null; }
+}
+function saveMe(){
+  try{
+    if(myUser) localStorage.setItem('hatim_me', JSON.stringify(myUser));
+    else localStorage.removeItem('hatim_me');
+  }catch(e){}
+}
+function myIdentity(){
+  if(!myUser) return null;
+  /* isim admin tarafından değişmiş olabilir → güncel adı index'ten türet */
+  const nm = liveName(myUser.idx) || myUser.name;
+  return { idx: myUser.idx, name: nm };
+}
+function setIdentity(idx){
+  myUser = { idx: idx, name: liveName(idx) };
+  saveMe();
+  render();
+}
+function clearIdentity(){
+  myUser = null; saveMe(); render();
+}
+function pickIdentity(){
+  try{ sessionStorage.setItem('hatim_idprompt','1'); }catch(e){}
+  const me = myIdentity();
+  let rows = '';
+  const M = participantCount();
+  for(let i=0;i<M;i++){
+    if(isInactive(i)) continue;
+    const cur = me && me.idx === i;
+    rows += '<button class="pick-btn'+(cur?' cur':'')+'" data-action="set-identity" data-i="'+i+'">'+escAttr(liveName(i))+(cur?' ✓':'')+'</button>';
+  }
+  const clearBtn = me ? '<button class="pick-btn auto" data-action="clear-identity">✕ Bu cihazdan çık</button>' : '';
+  uiConfirm({
+    wide:true,
+    title:'ALTTAKİ LİSTEDEN KENDİNİZİ SEÇİN',
+    body:'<div class="pick-list">'+clearBtn+rows+'</div>',
+    okText:'Şimdi değil', hideCancel:true
+  });
+}
+
+/* ---- Kayıt defteri (mevcut veriden türetilir, ek depolama yok) ---- */
+function buildLog(){
+  const arr = [];
+  for(let h=1; h<=state.hatimCount; h++){
+    if(isRemoved(h)) continue;
+    const d = state.done[h] || {};
+    for(const cstr in d){
+      if(!d[cstr]) continue;
+      const c = +cstr;
+      const t = (state.times && state.times[h] && state.times[h][c]) || null;
+      arr.push({ name: readerName(h, c), h:h, cuz:c, t:t });
+    }
+  }
+  arr.sort(function(a,b){ return (b.t||0) - (a.t||0); });
+  return arr;
+}
+function showLog(){
+  if(!isAdmin) return;
+  const arr = buildLog();
+  let rows = '';
+  if(arr.length === 0){ rows = '<div class="prof-empty">Henüz okunmuş cüz kaydı yok.</div>'; }
+  arr.forEach(function(e){
+    rows += '<div class="lg-row"><div class="lg-top"><span class="lg-name">'+escAttr(e.name||'?')+'</span>'
+          + '<span class="lg-act ok">okundu</span></div>'
+          + '<div class="lg-mid">'+e.h+'. hatim · '+e.cuz+'. cüz</div>'
+          + '<div class="lg-bot">'+fmtTime(e.t)+'</div></div>';
+  });
+  uiConfirm({
+    wide:true,
+    title:'📋 Kayıt Defteri ('+arr.length+')',
+    body:'<div class="admin-note">Hangi cüzü kim, ne zaman okudu. Cihaz/konum gibi bilgi tutulmaz; bu liste yalnızca '
+        +'mevcut okuma kayıtlarından oluşturulur. Eski kayıtlarda saat olmayabilir.</div>'
+        +'<div class="lg-list">'+rows+'</div>',
+    okText:'Kapat', hideCancel:true
+  });
+}
+
+/* ---- İşlemler ---- */
+function toggle(h,cuz){
+  if(!isMyCuz(h, cuz)){
+    const me = myIdentity();
+    uiAlert('Sadece kendi cüzünüz',
+      'Şu an <b>'+escAttr(me ? me.name : '')+'</b> olarak giriş yaptınız. Yalnızca size atanan cüzleri işaretleyebilir veya geri alabilirsiniz.<br><br>Başka birinin cüzünü işaretlemek için üstteki <b>👤</b> butonundan kişiyi değiştirin.');
+    return;
+  }
+  userPicked = true;
+  const willRead = !isDone(h,cuz);
+  const kisi = displayName(cuz,h);
+  uiConfirm({
+    title: willRead ? 'Okundu olarak işaretle' : 'İşareti kaldır',
+    okText: willRead ? '✓ Okundu' : 'Kaldır',
+    danger: !willRead,
+    body: '<span class="hl">'+h+'. hatim · '+cuz+'. cüz</span><br><span class="nm">'+kisi+'</span><br><br>'
+        + (willRead ? 'Bu cüz <b>OKUNDU</b> olarak işaretlensin mi?'
+                    : 'Bu cüzün işareti kaldırılsın mı? (okunmadı yapılacak)'),
+    onOk: function(){
+      const me = myIdentity();
+      const lockName = me ? me.name : liveName(effectiveIndex(cuz,h));
+      if(useFirebase){
+        const u = {};
+        if(willRead){ u['done/'+h+'/'+cuz] = true; u['readers/'+h+'/'+cuz] = lockName; u['times/'+h+'/'+cuz] = firebase.database.ServerValue.TIMESTAMP; }
+        else { u['done/'+h+'/'+cuz] = null; u['readers/'+h+'/'+cuz] = null; u['times/'+h+'/'+cuz] = null; }
+        fbRoot().update(u);
+      } else {
+        setDone(h,cuz,willRead);
+        state.readers = state.readers || {}; state.times = state.times || {};
+        if(!state.readers[h]) state.readers[h] = {};
+        if(!state.times[h]) state.times[h] = {};
+        if(willRead){ state.readers[h][cuz] = lockName; state.times[h][cuz] = Date.now(); }
+        else { delete state.readers[h][cuz]; delete state.times[h][cuz]; }
+        save(); render(); detectCompletions();
+      }
+    }
+  });
+}
+
+function shareText(h){
+  const readNums = [], unread = [];
+  for(let c=1;c<=30;c++){ if(isDone(h,c)) readNums.push(c); else unread.push(c); }
+  const read = readNums.length, left = unread.length, pct = Math.round(read/30*100);
+  let t = "📖 " + h + ". HATİM DURUMU\n";
+  t += "Merhum HAFIZ HALİL KILIÇ (Hacıbabamız) ruhuna ithafen\n";
+  t += "🗓️ Son tarih: " + hatimDate(h) + " 18:00\n\n";
+  if(left === 0){
+    t += "🎉 Tamamlandı! 30/30 cüz okundu. Allah kabul etsin.\n";
+  } else {
+    t += "✅ Okunan: " + read + "/30 (%" + pct + ")\n";
+    t += "⏳ Kalan: " + left + " cüz\n";
+    if(read > 0) t += "\n📗 Okunan cüzler: " + readNums.join(", ") + "\n";
+    t += "\n📌 Okunmayan cüzler:\n";
+    unread.forEach(c=>{ t += "• " + c + ". cüz — " + displayName(c,h) + "\n"; });
+  }
+  t += "\n🔗 " + location.href;
+  return t;
+}
+function shareWhatsApp(h){
+  window.open("https://wa.me/?text=" + encodeURIComponent(shareText(h)), "_blank");
+}
+
+function snapNames(){ const s = {}; const M = participantCount(); for(let i=0;i<M;i++) s[i] = liveName(i); return s; }
+function archiveHatim(h){
+  archiveOpen = true;
+  const hasSnap = state.snapshots && state.snapshots[h];
+  if(useFirebase){
+    if(!hasSnap) fbPath('snapshots/'+h).set(snapNames());
+    fbPath('archived/'+h).set(true);
+  } else {
+    if(!isArchived(h)) state.archived.push(h);
+    if(!hasSnap){ state.snapshots = state.snapshots || {}; state.snapshots[h] = snapNames(); }
+    save(); render();
+  }
+}
+function restoreHatim(h){
+  delete expanded[h];
+  if(useFirebase){ fbPath('archived/'+h).remove(); fbPath('snapshots/'+h).remove(); }
+  else { state.archived = state.archived.filter(x=>x!==h); if(state.snapshots) delete state.snapshots[h]; save(); render(); }
+}
+function removeHatim(h){
+  uiConfirm({
+    title:'Hatimi kaldır', danger:true, okText:'Kaldır',
+    body:'<span class="hl">'+h+'. hatim</span><br><br>Bu hatim ve tüm işaretleri silinecek. Emin misiniz?',
+    onOk:function(){ doRemoveHatim(h); }
+  });
+}
+function doRemoveHatim(h){
+  delete expanded[h];
+  if(useFirebase){
+    const updates = {};
+    updates['done/'+h] = null;
+    updates['archived/'+h] = null;
+    updates['snapshots/'+h] = null;
+    updates['readers/'+h] = null;
+    updates['times/'+h] = null;
+    updates['overrides/'+h] = null;
+    if(h === state.hatimCount){
+      let nc = state.hatimCount - 1;
+      while(nc > 0 && state.removed.indexOf(nc) !== -1){ updates['removed/'+nc] = null; nc--; }
+      if(nc < 1) nc = 1;
+      updates['meta/hatimCount'] = nc;
+    } else {
+      updates['removed/'+h] = true;
+    }
+    fbRoot().update(updates);
+    return;
+  }
+  delete state.done[h];
+  state.archived = state.archived.filter(x=>x!==h);
+  if(state.snapshots) delete state.snapshots[h];
+  if(state.readers) delete state.readers[h];
+  if(state.times) delete state.times[h];
+  if(state.overrides) delete state.overrides[h];
+  if(h === state.hatimCount){
+    state.hatimCount--;
+    while(state.hatimCount > 0 && state.removed.indexOf(state.hatimCount) !== -1){
+      state.removed = state.removed.filter(x=>x!==state.hatimCount);
+      state.hatimCount--;
+    }
+  } else if(state.removed.indexOf(h) === -1){
+    state.removed.push(h);
+  }
+  if(state.hatimCount < 1) state.hatimCount = 1;
+  save(); render();
+}
+
+app.addEventListener('click', e=>{
+  const btn = e.target.closest('[data-action]');
+  if(btn){
+    const a = btn.dataset.action, h = +btn.dataset.h;
+    if(a === 'add'){
+      if(!isAdmin) return;
+      userPicked = true;
+      activeHatim = state.hatimCount + 1;
+      window.scrollTo(0,0);
+      if(useFirebase){ fbPath('meta/hatimCount').set(state.hatimCount + 1); }
+      else { state.hatimCount++; save(); render(); }
+    }
+    else if(a === 'tab'){ userPicked = true; activeHatim = h; window.scrollTo(0,0); render(); }
+    else if(a === 'del'){ removeHatim(h); }
+    else if(a === 'share'){ shareWhatsApp(h); }
+    else if(a === 'admin'){ openAdmin(); }
+    else if(a === 'whoami'){ pickIdentity(); }
+    else if(a === 'showlog'){ showLog(); }
+    else if(a === 'admin-logout'){ isAdmin = false; render(); }
+    else if(a === 'reassign'){ reassign(h, +btn.dataset.cuz); }
+    else if(a === 'profile'){ showProfile(btn.dataset.name); }
+    else if(a === 'remind'){ remindUnread(h); }
+    else if(a === 'notif'){ requestNotif(); }
+    else if(a === 'reset'){
+      uiConfirm({
+        title:'Tümünü sıfırla', danger:true, okText:'Sil',
+        body:'<b>TÜM</b> hatimler, arşiv ve işaretler silinecek. Bu işlem geri alınamaz. Emin misiniz?',
+        onOk:function(){
+          expanded = {}; archiveOpen = false;
+          if(useFirebase){ fbRoot().remove(); }
+          else { state = {hatimCount:1, done:{}, archived:[], removed:[], names:{}, snapshots:{}, readers:{}, times:{}, inactive:{}, double:{}, overrides:{}, pcount:30}; save(); render(); }
+        }
+      });
+    }
+    else if(a === 'archive'){ archiveHatim(h); }
+    else if(a === 'arch-toggle'){ archiveOpen = !archiveOpen; render(); }
+    else if(a === 'arch-show'){ expanded[h] = !expanded[h]; render(); }
+    else if(a === 'arch-restore'){ restoreHatim(h); }
+    return;
+  }
+  const row = e.target.closest('.row');
+  if(row && row.dataset.h){ toggle(+row.dataset.h, +row.dataset.cuz); }
+});
+app.addEventListener('keydown', e=>{
+  if(e.key === 'Enter' || e.key === ' '){
+    const row = e.target.closest('.row');
+    if(row && row.dataset.h){ e.preventDefault(); toggle(+row.dataset.h, +row.dataset.cuz); }
+  }
+});
+
+/* ---- Başlatma ---- */
+function maybePromptIdentity(){
+  if(identityPrompted || myIdentity()) return;
+  let skip = false;
+  try{ skip = sessionStorage.getItem('hatim_idprompt') === '1'; }catch(e){}
+  if(skip) return;
+  identityPrompted = true;
+  setTimeout(pickIdentity, 900);
+}
+loadMe();
+if(useFirebase){
+  setStatus('connecting');
+  try{
+    firebase.initializeApp(firebaseConfig);
+    db = firebase.database();
+    db.ref('.info/connected').on('value', s=>{ setStatus(s.val() ? 'ok' : 'offline'); });
+    fbRoot().on('value', snap=>{ applySnap(snap.val()); maybePromptIdentity(); });
+  }catch(err){
+    state = load(); setStatus('local'); render(); maybePromptIdentity();
+  }
+} else {
+  setStatus('local');
+  render();
+  detectCompletions();
+  maybePromptIdentity();
+}
+</script>
+</body>
+</html>
