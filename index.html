@@ -266,6 +266,7 @@ function App() {
   const [interimSuccess, setInterimSuccess] = useState(null);
   const [showBulk, setShowBulk] = useState(false);
   const [showSettings, setShowSettings] = useState(false);
+  const [usageStart, setUsageStart] = useState(null);
 
   const daysInMonth = (m, y) => new Date(y, m + 1, 0).getDate();
 
@@ -294,11 +295,43 @@ function App() {
     if (saved) {
       const parsed = JSON.parse(saved);
       setData(parsed.data || {}); setArchive(parsed.archive || []); setRange(parsed.range || null);
+      setUsageStart(parsed.usageStart || null);
       if (parsed.range) setSelectedDate(findSmartStartDate(parsed.range, parsed.archive || [], parsed.data || {}));
     }
   }, []);
 
-  useEffect(() => { if (range) localStorage.setItem(STORAGE_KEY, JSON.stringify({ data, archive, range })); }, [data, archive, range]);
+  useEffect(() => { if (range) localStorage.setItem(STORAGE_KEY, JSON.stringify({ data, archive, range, usageStart })); }, [data, archive, range, usageStart]);
+
+  const parseStamp = (s) => {
+    if (!s) return null;
+    const [datePart, timePart] = s.split(' ');
+    const [dd, mm, yyyy] = datePart.split('.').map(Number);
+    const [hh, min] = (timePart || '00:00').split(':').map(Number);
+    return new Date(yyyy, mm - 1, dd, hh || 0, min || 0);
+  };
+
+  const estimateFinish = useMemo(() => {
+    if (!range || archive.length === 0) return null;
+    const remaining = stats.total - stats.done;
+    if (remaining <= 0) return { done: true };
+    let earliest = usageStart ? new Date(usageStart) : null;
+    archive.forEach(a => {
+      const t = parseStamp(a.completedAt);
+      if (t && (!earliest || t < earliest)) earliest = t;
+    });
+    if (!earliest) return null;
+    const now = new Date();
+    const elapsedDays = Math.max(1, (now - earliest) / 86400000);
+    const pace = stats.done / elapsedDays;
+    if (pace <= 0) return null;
+    const daysNeeded = Math.ceil(remaining / pace);
+    const finish = new Date(now.getTime() + daysNeeded * 86400000);
+    return {
+      done: false,
+      dateLabel: `${finish.getDate()} ${MONTHS[finish.getMonth()]} ${finish.getFullYear()}`,
+      paceLabel: pace >= 1 ? `günde ort. ${pace.toFixed(1)} gün` : `haftada ort. ${(pace*7).toFixed(1)} gün`
+    };
+  }, [archive, range, stats, usageStart]);
 
   const stats = useMemo(() => {
     if (!range) return { percent: 0, done: 0, total: 0 };
@@ -469,7 +502,7 @@ function App() {
           <select value={setup.endM} onChange={e => setSetup({...setup, endM: Number(e.target.value)})}>{MONTHS.map((m, i) => <option key={i} value={i}>{m}</option>)}</select>
           <select value={setup.endY} onChange={e => setSetup({...setup, endY: Number(e.target.value)})}>{yearOptions.map(y => <option key={y} value={y}>{y}</option>)}</select>
         </div>
-        <button className="btn btn-gold" onClick={() => {setRange(setup); setSelectedDate({d:1, m:setup.startM, y:setup.startY});}}>SİSTEMİ KUR</button>
+        <button className="btn btn-gold" onClick={() => {setRange(setup); setSelectedDate({d:1, m:setup.startM, y:setup.startY}); setUsageStart(new Date().toISOString());}}>SİSTEMİ KUR</button>
         <div style={{marginTop:'18px', textAlign:'center'}}>
           <input type="file" id="backup-upload-init" accept=".json" onChange={handleRestore} />
           <button className="btn-ghost" onClick={() => document.getElementById('backup-upload-init').click()}>Daha önce yedek aldıysanız buradan geri yükleyin</button>
@@ -499,6 +532,20 @@ function App() {
           <div className="value">{stats.done} / {stats.total} gün</div>
         </div>
       </div>
+
+      {estimateFinish && (
+        <div className="card" style={{padding:'16px 20px'}}>
+          {estimateFinish.done ? (
+            <p style={{margin:0, fontSize:'.85rem', color:'var(--success)'}}>🎉 Kaza aralığındaki tüm günler tamamlandı!</p>
+          ) : (
+            <React.Fragment>
+              <div className="label" style={{fontSize:'.68rem', color:'var(--muted)', textTransform:'uppercase', letterSpacing:'1px', marginBottom:'4px'}}>Tahmini Bitiş Tarihi</div>
+              <div style={{fontSize:'1.1rem', fontWeight:600}}>{estimateFinish.dateLabel}</div>
+              <div style={{fontSize:'.7rem', color:'var(--muted)', marginTop:'4px'}}>Şu anki tempona göre: {estimateFinish.paceLabel} tamamlıyorsun</div>
+            </React.Fragment>
+          )}
+        </div>
+      )}
 
       <div className="card">
         <div className="selectors">
