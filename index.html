@@ -310,6 +310,23 @@ function App() {
     return new Date(yyyy, mm - 1, dd, hh || 0, min || 0);
   };
 
+  const stats = useMemo(() => {
+    if (!range) return { percent: 0, done: 0, total: 0 };
+    const start = new Date(range.startY, range.startM, 1);
+    const end = new Date(range.endY, range.endM + 1, 0);
+    const totalDaysCount = Math.round((end - start) / (1000 * 60 * 60 * 24)) + 1;
+    let done = 0;
+    let curr = new Date(range.startY, range.startM, 1);
+    while (curr <= new Date(range.endY, range.endM, 1)) {
+      const m = curr.getMonth(), y = curr.getFullYear();
+      const dCount = daysInMonth(m, y);
+      if (archive.some(a => (a.type==='year' && a.y===y) || (a.type==='month' && a.m===m && a.y===y))) done += dCount;
+      else { for (let d = 1; d <= dCount; d++) if (isDayDone(d, m, y)) done++; }
+      curr.setMonth(curr.getMonth() + 1);
+    }
+    return { percent: totalDaysCount ? ((Math.min(done, totalDaysCount) / totalDaysCount) * 100).toFixed(1) : 0, done: Math.min(done, totalDaysCount), total: totalDaysCount };
+  }, [archive, range, isDayDone]);
+
   const estimateFinish = useMemo(() => {
     if (!range || archive.length === 0) return null;
     const remaining = stats.total - stats.done;
@@ -332,23 +349,6 @@ function App() {
       paceLabel: pace >= 1 ? `günde ort. ${pace.toFixed(1)} gün` : `haftada ort. ${(pace*7).toFixed(1)} gün`
     };
   }, [archive, range, stats, usageStart]);
-
-  const stats = useMemo(() => {
-    if (!range) return { percent: 0, done: 0, total: 0 };
-    const start = new Date(range.startY, range.startM, 1);
-    const end = new Date(range.endY, range.endM + 1, 0);
-    const totalDaysCount = Math.round((end - start) / (1000 * 60 * 60 * 24)) + 1;
-    let done = 0;
-    let curr = new Date(range.startY, range.startM, 1);
-    while (curr <= new Date(range.endY, range.endM, 1)) {
-      const m = curr.getMonth(), y = curr.getFullYear();
-      const dCount = daysInMonth(m, y);
-      if (archive.some(a => (a.type==='year' && a.y===y) || (a.type==='month' && a.m===m && a.y===y))) done += dCount;
-      else { for (let d = 1; d <= dCount; d++) if (isDayDone(d, m, y)) done++; }
-      curr.setMonth(curr.getMonth() + 1);
-    }
-    return { percent: totalDaysCount ? ((Math.min(done, totalDaysCount) / totalDaysCount) * 100).toFixed(1) : 0, done: Math.min(done, totalDaysCount), total: totalDaysCount };
-  }, [archive, range, isDayDone]);
 
   const getRemainingByYear = (year) => {
     if (!range || isDayDone(1, 0, year, archive)) {
