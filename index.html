@@ -235,7 +235,7 @@ const Logo = ({ onSettings }) => (
   <div className="arch-header">
     {onSettings && <button className="gear-btn" onClick={onSettings} aria-label="Ayarlar">⚙</button>}
     <img src={LOGO_URL} className="app-logo-img" alt="Logo" />
-    <div><span className="logo-text">KAZA REHBERİ</span><span className="version-badge">2.4.1</span></div>
+    <div><span className="logo-text">KAZA REHBERİ</span><span className="version-badge">2.5</span></div>
     <div className="logo-subtext">Manevi Yolculuk Takibi</div>
   </div>
 );
@@ -471,6 +471,23 @@ function App() {
     if (window.confirm(msg)) { type === 'month' ? completeMonth() : completeYear(); }
   };
 
+  const undoRecord = (rec) => {
+    const isBulk = rec.type !== 'day';
+    const msg = isBulk
+      ? `"${rec.label}" geri alınacak. Bu pakete ait ${rec.days.length} günün kaza durumu ve o günler için işaretlenen namazlar sıfırlanacak. Devam edilsin mi?`
+      : `"${rec.label}" için kaza kaydı geri alınacak, gün tekrar "yapılmadı" olarak işaretlenecek. Devam edilsin mi?`;
+    if (!window.confirm(msg)) return;
+    setArchive(prev => prev.filter(a => a !== rec));
+    if (isBulk && rec.days) {
+      setData(prev => {
+        const nd = { ...prev };
+        rec.days.forEach(d => { delete nd[`${d.d}-${d.m}-${d.y}`]; });
+        return nd;
+      });
+    }
+    setViewing(null);
+  };
+
   const handleRestore = (e, closeSettings) => {
     const f = e.target.files[0]; if(!f) return;
     const r = new FileReader();
@@ -653,6 +670,7 @@ function App() {
               </div>
             </div>
             <button className="btn btn-outline" onClick={() => setViewing(null)}>KAPAT</button>
+            <button className="btn btn-danger-ghost" style={{marginTop:'10px'}} onClick={() => undoRecord(viewing)}>Bu Kaydı Geri Al</button>
           </div>
         </div>
       )}
