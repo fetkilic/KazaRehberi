@@ -235,7 +235,7 @@ const Logo = ({ onSettings }) => (
   <div className="arch-header">
     {onSettings && <button className="gear-btn" onClick={onSettings} aria-label="Ayarlar">⚙</button>}
     <img src={LOGO_URL} className="app-logo-img" alt="Logo" />
-    <div><span className="logo-text">KAZA REHBERİ</span><span className="version-badge">2.5</span></div>
+    <div><span className="logo-text">KAZA REHBERİ</span><span className="version-badge">2.6</span></div>
     <div className="logo-subtext">Manevi Yolculuk Takibi</div>
   </div>
 );
@@ -327,10 +327,32 @@ function App() {
     return { percent: totalDaysCount ? ((Math.min(done, totalDaysCount) / totalDaysCount) * 100).toFixed(1) : 0, done: Math.min(done, totalDaysCount), total: totalDaysCount };
   }, [archive, range, isDayDone]);
 
+  const prayerStats = useMemo(() => {
+    if (!range) return { donePrayers: 0, totalPrayers: 0 };
+    let donePrayers = 0;
+    const totalPrayers = stats.total * PRAYERS.length;
+    let curr = new Date(range.startY, range.startM, 1);
+    while (curr <= new Date(range.endY, range.endM, 1)) {
+      const m = curr.getMonth(), y = curr.getFullYear();
+      const dCount = daysInMonth(m, y);
+      const monthArchived = archive.some(a => (a.type==='year' && a.y===y) || (a.type==='month' && a.m===m && a.y===y));
+      for (let d = 1; d <= dCount; d++) {
+        if (monthArchived || isDayDone(d, m, y)) { donePrayers += PRAYERS.length; }
+        else {
+          const dKey = `${d}-${m}-${y}`;
+          donePrayers += PRAYERS.filter(p => (data[dKey]||{})[p]).length;
+        }
+      }
+      curr.setMonth(curr.getMonth() + 1);
+    }
+    return { donePrayers: Math.min(donePrayers, totalPrayers), totalPrayers };
+  }, [archive, range, data, stats, isDayDone]);
+
   const estimateFinish = useMemo(() => {
-    if (!range || archive.length === 0) return null;
-    const remaining = stats.total - stats.done;
-    if (remaining <= 0) return { done: true };
+    if (!range) return null;
+    const remainingPrayers = prayerStats.totalPrayers - prayerStats.donePrayers;
+    if (remainingPrayers <= 0) return { done: true };
+    if (prayerStats.donePrayers === 0) return null;
     let earliest = usageStart ? new Date(usageStart) : null;
     archive.forEach(a => {
       const t = parseStamp(a.completedAt);
@@ -339,16 +361,16 @@ function App() {
     if (!earliest) return null;
     const now = new Date();
     const elapsedDays = Math.max(1, (now - earliest) / 86400000);
-    const pace = stats.done / elapsedDays;
+    const pace = prayerStats.donePrayers / elapsedDays;
     if (pace <= 0) return null;
-    const daysNeeded = Math.ceil(remaining / pace);
+    const daysNeeded = Math.ceil(remainingPrayers / pace);
     const finish = new Date(now.getTime() + daysNeeded * 86400000);
     return {
       done: false,
       dateLabel: `${finish.getDate()} ${MONTHS[finish.getMonth()]} ${finish.getFullYear()}`,
-      paceLabel: pace >= 1 ? `günde ort. ${pace.toFixed(1)} gün` : `haftada ort. ${(pace*7).toFixed(1)} gün`
+      paceLabel: pace >= 1 ? `günde ort. ${pace.toFixed(1)} vakit` : `haftada ort. ${(pace*7).toFixed(1)} vakit`
     };
-  }, [archive, range, stats, usageStart]);
+  }, [archive, range, prayerStats, usageStart]);
 
   const getRemainingByYear = (year) => {
     if (!range || isDayDone(1, 0, year, archive)) {
@@ -558,7 +580,7 @@ function App() {
             <React.Fragment>
               <div className="label" style={{fontSize:'.68rem', color:'var(--muted)', textTransform:'uppercase', letterSpacing:'1px', marginBottom:'4px'}}>Tahmini Bitiş Tarihi</div>
               <div style={{fontSize:'1.1rem', fontWeight:600}}>{estimateFinish.dateLabel}</div>
-              <div style={{fontSize:'.7rem', color:'var(--muted)', marginTop:'4px'}}>Şu anki tempona göre: {estimateFinish.paceLabel} tamamlıyorsun</div>
+              <div style={{fontSize:'.7rem', color:'var(--muted)', marginTop:'4px'}}>Şu anki tempona göre: {estimateFinish.paceLabel} kaza ediyorsun</div>
             </React.Fragment>
           )}
         </div>
