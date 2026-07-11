@@ -235,7 +235,7 @@ const Logo = ({ onSettings }) => (
   <div className="arch-header">
     {onSettings && <button className="gear-btn" onClick={onSettings} aria-label="Ayarlar">⚙</button>}
     <img src={LOGO_URL} className="app-logo-img" alt="Logo" />
-    <div><span className="logo-text">KAZA REHBERİ</span><span className="version-badge">2.6</span></div>
+    <div><span className="logo-text">KAZA REHBERİ</span><span className="version-badge">2.7</span></div>
     <div className="logo-subtext">Manevi Yolculuk Takibi</div>
   </div>
 );
@@ -267,6 +267,7 @@ function App() {
   const [showBulk, setShowBulk] = useState(false);
   const [showSettings, setShowSettings] = useState(false);
   const [usageStart, setUsageStart] = useState(null);
+  const [activityLog, setActivityLog] = useState([]);
 
   const daysInMonth = (m, y) => new Date(y, m + 1, 0).getDate();
 
@@ -296,11 +297,20 @@ function App() {
       const parsed = JSON.parse(saved);
       setData(parsed.data || {}); setArchive(parsed.archive || []); setRange(parsed.range || null);
       setUsageStart(parsed.usageStart || null);
+      setActivityLog(parsed.activityLog || []);
       if (parsed.range) setSelectedDate(findSmartStartDate(parsed.range, parsed.archive || [], parsed.data || {}));
     }
   }, []);
 
-  useEffect(() => { if (range) localStorage.setItem(STORAGE_KEY, JSON.stringify({ data, archive, range, usageStart })); }, [data, archive, range, usageStart]);
+  useEffect(() => { if (range) localStorage.setItem(STORAGE_KEY, JSON.stringify({ data, archive, range, usageStart, activityLog })); }, [data, archive, range, usageStart, activityLog]);
+
+  const logActivity = (delta) => {
+    if (!delta) return;
+    setActivityLog(prev => {
+      const next = [...prev, { ts: new Date().toISOString(), delta }];
+      return next.length > 400 ? next.slice(-400) : next;
+    });
+  };
 
   const parseStamp = (s) => {
     if (!s) return null;
@@ -353,24 +363,45 @@ function App() {
     const remainingPrayers = prayerStats.totalPrayers - prayerStats.donePrayers;
     if (remainingPrayers <= 0) return { done: true };
     if (prayerStats.donePrayers === 0) return null;
-    let earliest = usageStart ? new Date(usageStart) : null;
-    archive.forEach(a => {
-      const t = parseStamp(a.completedAt);
-      if (t && (!earliest || t < earliest)) earliest = t;
-    });
-    if (!earliest) return null;
+
     const now = new Date();
-    const elapsedDays = Math.max(1, (now - earliest) / 86400000);
-    const pace = prayerStats.donePrayers / elapsedDays;
-    if (pace <= 0) return null;
+    const WINDOW_DAYS = 14;
+    const cutoff = new Date(now.getTime() - WINDOW_DAYS * 86400000);
+    const recentEntries = activityLog.filter(e => new Date(e.ts) >= cutoff);
+    const recentSum = recentEntries.reduce((s, e) => s + e.delta, 0);
+
+    let pace = null;
+    let usedRecentWindow = false;
+    if (recentSum > 0) {
+      let windowStart = cutoff;
+      if (usageStart && new Date(usageStart) > windowStart) windowStart = new Date(usageStart);
+      const elapsedWindowDays = Math.max(1, (now - windowStart) / 86400000);
+      pace = recentSum / elapsedWindowDays;
+      usedRecentWindow = true;
+    }
+
+    if (!pace || pace <= 0) {
+      let earliest = usageStart ? new Date(usageStart) : null;
+      archive.forEach(a => {
+        const t = parseStamp(a.completedAt);
+        if (t && (!earliest || t < earliest)) earliest = t;
+      });
+      if (!earliest) return null;
+      const elapsedDays = Math.max(1, (now - earliest) / 86400000);
+      pace = prayerStats.donePrayers / elapsedDays;
+      usedRecentWindow = false;
+    }
+
+    if (!pace || pace <= 0) return null;
     const daysNeeded = Math.ceil(remainingPrayers / pace);
     const finish = new Date(now.getTime() + daysNeeded * 86400000);
+    const windowNote = usedRecentWindow ? ' (son 14 gün)' : '';
     return {
       done: false,
       dateLabel: `${finish.getDate()} ${MONTHS[finish.getMonth()]} ${finish.getFullYear()}`,
-      paceLabel: pace >= 1 ? `günde ort. ${pace.toFixed(1)} vakit` : `haftada ort. ${(pace*7).toFixed(1)} vakit`
+      paceLabel: (pace >= 1 ? `günde ort. ${pace.toFixed(1)} vakit` : `haftada ort. ${(pace*7).toFixed(1)} vakit`) + windowNote
     };
-  }, [archive, range, prayerStats, usageStart]);
+  }, [archive, range, prayerStats, usageStart, activityLog]);
 
   const getRemainingByYear = (year) => {
     if (!range || isDayDone(1, 0, year, archive)) {
@@ -423,8 +454,17 @@ function App() {
     return n;
   };
 
+  const togglePrayer = (dKey, p) => {
+    const already = !!(data[dKey]||{})[p];
+    logActivity(already ? -1 : 1);
+    setData({...data, [dKey]:{...(data[dKey]||{}), [p]: !already}});
+  };
+
   const completeDay = () => {
     const stamp = getNowStamp();
+    const dKeyLocal = `${selectedDate.d}-${selectedDate.m}-${selectedDate.y}`;
+    const alreadyChecked = PRAYERS.filter(p => (data[dKeyLocal]||{})[p]).length;
+    logActivity(PRAYERS.length - alreadyChecked);
     const newDay = { label: `${selectedDate.d} ${MONTHS[selectedDate.m]} ${selectedDate.y}`, d: selectedDate.d, m: selectedDate.m, y: selectedDate.y, type: 'day', completedAt: stamp };
     setArchive(prev => bundleArchive([newDay, ...prev]));
     setInterimSuccess(`${selectedDate.d} ${MONTHS[selectedDate.m]} tamamlandı!`);
@@ -437,13 +477,17 @@ function App() {
     const historyMap = new Map();
     const newData = { ...data };
     const dCount = daysInMonth(selectedDate.m, selectedDate.y);
+    let monthDelta = 0;
     for (let d = 1; d <= dCount; d++) {
       const dKey = `${d}-${selectedDate.m}-${selectedDate.y}`;
       if (!isDayDone(d, selectedDate.m, selectedDate.y)) {
+        const prevChecked = PRAYERS.filter(p => (data[dKey]||{})[p]).length;
+        monthDelta += PRAYERS.length - prevChecked;
         historyMap.set(dKey, { label: `${d} ${MONTHS[selectedDate.m]} ${selectedDate.y}`, date: stamp, sort: selectedDate.y*10000 + selectedDate.m*100 + d, d, m: selectedDate.m, y: selectedDate.y });
         newData[dKey] = PRAYERS.reduce((acc, p) => ({ ...acc, [p]: true }), {});
       }
     }
+    logActivity(monthDelta);
     archive.forEach(a => {
       if ((a.y === selectedDate.y && a.m === selectedDate.m) || (a.days && a.days.some(d => d.m === selectedDate.m && d.y === selectedDate.y))) {
         if (a.type === 'day' && a.m === selectedDate.m) historyMap.set(`${a.d}-${a.m}-${a.y}`, {label: a.label, date: a.completedAt, sort: a.y*10000+a.m*100+a.d, d: a.d, m: a.m, y: a.y});
@@ -462,16 +506,20 @@ function App() {
     const stamp = getNowStamp();
     const historyMap = new Map();
     const newData = { ...data };
+    let yearDelta = 0;
     for (let m = 0; m < 12; m++) {
       const dCount = daysInMonth(m, selectedDate.y);
       for (let d = 1; d <= dCount; d++) {
         const dKey = `${d}-${m}-${selectedDate.y}`;
         if (!isDayDone(d, m, selectedDate.y)) {
+          const prevChecked = PRAYERS.filter(p => (data[dKey]||{})[p]).length;
+          yearDelta += PRAYERS.length - prevChecked;
           historyMap.set(dKey, { label: `${d} ${MONTHS[m]} ${selectedDate.y}`, date: stamp, sort: selectedDate.y*10000 + m*100 + d, d, m, y: selectedDate.y });
           newData[dKey] = PRAYERS.reduce((acc, p) => ({ ...acc, [p]: true }), {});
         }
       }
     }
+    logActivity(yearDelta);
     archive.forEach(a => {
       if (a.y === selectedDate.y || (a.days && a.days.some(d => d.y === selectedDate.y))) {
         if (a.type === 'day') historyMap.set(`${a.d}-${a.m}-${a.y}`, {label: a.label, date: a.completedAt, sort: a.y*10000+a.m*100+a.d, d: a.d, m: a.m, y: a.y});
@@ -501,11 +549,16 @@ function App() {
     if (!window.confirm(msg)) return;
     setArchive(prev => prev.filter(a => a !== rec));
     if (isBulk && rec.days) {
+      logActivity(-(rec.days.length * PRAYERS.length));
       setData(prev => {
         const nd = { ...prev };
         rec.days.forEach(d => { delete nd[`${d.d}-${d.m}-${d.y}`]; });
         return nd;
       });
+    } else {
+      const dKeyLocal = `${rec.d}-${rec.m}-${rec.y}`;
+      const partial = PRAYERS.filter(p => (data[dKeyLocal]||{})[p]).length;
+      logActivity(-(PRAYERS.length - partial));
     }
     setViewing(null);
   };
@@ -629,7 +682,7 @@ function App() {
         {PRAYERS.map(p => {
           const c = (data[dKey]||{})[p] || dayDone;
           return (
-            <div key={p} className={`prayer-row ${c ? 'is-checked' : ''} ${dayDone ? 'disabled-row' : ''}`} onClick={() => !dayDone && setData({...data, [dKey]:{...(data[dKey]||{}), [p]:!data[dKey]?.[p]}})}>
+            <div key={p} className={`prayer-row ${c ? 'is-checked' : ''} ${dayDone ? 'disabled-row' : ''}`} onClick={() => !dayDone && togglePrayer(dKey, p)}>
               <div className="custom-check"></div><span>{p} Namazı</span>
             </div>
           );
