@@ -235,7 +235,7 @@ const Logo = ({ onSettings }) => (
   <div className="arch-header">
     {onSettings && <button className="gear-btn" onClick={onSettings} aria-label="Ayarlar">⚙</button>}
     <img src={LOGO_URL} className="app-logo-img" alt="Logo" />
-    <div><span className="logo-text">KAZA REHBERİ</span><span className="version-badge">2.7</span></div>
+    <div><span className="logo-text">KAZA REHBERİ</span><span className="version-badge">2.8</span></div>
     <div className="logo-subtext">Manevi Yolculuk Takibi</div>
   </div>
 );
@@ -281,39 +281,50 @@ function App() {
   }, [archive]);
 
   const findSmartStartDate = useCallback((r, arch, dta) => {
-    const startY = Math.min(r.startY, r.endY);
-    const endY = Math.max(r.startY, r.endY);
-    // Her yıl için kalan kaza namazı sayısını hesapla
-    let bestYear = null, bestPrayers = -1;
-    for (let y = startY; y <= endY; y++) {
-      if (arch.some(a => a.type === 'year' && a.y === y)) continue;
-      const sM = (y === r.startY) ? r.startM : 0;
-      const eM = (y === r.endY) ? r.endM : 11;
-      let rPrayers = 0;
-      for (let m = sM; m <= eM; m++) {
-        if (arch.some(a => a.type === 'month' && a.m === m && a.y === y)) continue;
-        const dCount = new Date(y, m + 1, 0).getDate();
-        for (let d = 1; d <= dCount; d++) {
-          if (isDayDone(d, m, y, arch)) continue;
-          const dKey = `${d}-${m}-${y}`;
-          rPrayers += (PRAYERS.length - PRAYERS.filter(p => (dta[dKey] || {})[p]).length);
-        }
-      }
-      if (rPrayers > bestPrayers) { bestPrayers = rPrayers; bestYear = y; }
-    }
-    // En çok kaza olan yılın ilk kılınmamış gününü bul
-    if (bestYear !== null && bestPrayers > 0) {
-      const sM = (bestYear === r.startY) ? r.startM : 0;
-      const eM = (bestYear === r.endY) ? r.endM : 11;
-      for (let m = sM; m <= eM; m++) {
-        if (arch.some(a => a.type === 'month' && a.m === m && a.y === bestYear)) continue;
-        const dCount = new Date(bestYear, m + 1, 0).getDate();
-        for (let d = 1; d <= dCount; d++) {
-          if (!isDayDone(d, m, bestYear, arch)) return { d, m, y: bestYear };
-        }
-      }
+    let checkDate = new Date(r.startY, r.startM, 1);
+    const endDate = new Date(r.endY, r.endM, 31);
+    while (checkDate <= endDate) {
+      const y = checkDate.getFullYear(), m = checkDate.getMonth(), d = checkDate.getDate();
+      if (!isDayDone(d, m, y, arch)) return { d, m, y };
+      checkDate.setDate(checkDate.getDate() + 1);
     }
     return { d: 1, m: r.startM, y: r.startY };
+  }, [isDayDone]);
+
+  // Finds the year (within range) with the most already-completed kaza vakit that is
+  // NOT yet fully finished. Returns null if no year has any progress yet.
+  const findMostProgressedYear = useCallback((r, arch, dta) => {
+    const candidates = [];
+    for (let y = r.startY; y <= r.endY; y++) {
+      let totalVakit = 0, doneVakit = 0;
+      const sM = (y === r.startY) ? r.startM : 0;
+      const eM = (y === r.endY) ? r.endM : 11;
+      for (let m = sM; m <= eM; m++) {
+        const dCount = daysInMonth(m, y);
+        for (let d = 1; d <= dCount; d++) {
+          totalVakit += PRAYERS.length;
+          if (isDayDone(d, m, y, arch)) { doneVakit += PRAYERS.length; }
+          else { const dKey = `${d}-${m}-${y}`; doneVakit += PRAYERS.filter(p => (dta[dKey]||{})[p]).length; }
+        }
+      }
+      if (doneVakit > 0 && doneVakit < totalVakit) candidates.push({ y, doneVakit });
+    }
+    if (!candidates.length) return null;
+    candidates.sort((a, b) => b.doneVakit - a.doneVakit || a.y - b.y);
+    return candidates[0].y;
+  }, [isDayDone]);
+
+  const findFirstGapInYear = useCallback((year, r, arch) => {
+    const sM = (year === r.startY) ? r.startM : 0;
+    const eM = (year === r.endY) ? r.endM : 11;
+    let checkDate = new Date(year, sM, 1);
+    const endDate = new Date(year, eM, daysInMonth(eM, year));
+    while (checkDate <= endDate) {
+      const d = checkDate.getDate(), m = checkDate.getMonth(), y = checkDate.getFullYear();
+      if (!isDayDone(d, m, y, arch)) return { d, m, y };
+      checkDate.setDate(checkDate.getDate() + 1);
+    }
+    return { d: 1, m: sM, y: year };
   }, [isDayDone]);
 
   useEffect(() => {
@@ -323,7 +334,12 @@ function App() {
       setData(parsed.data || {}); setArchive(parsed.archive || []); setRange(parsed.range || null);
       setUsageStart(parsed.usageStart || null);
       setActivityLog(parsed.activityLog || []);
-      if (parsed.range) setSelectedDate(findSmartStartDate(parsed.range, parsed.archive || [], parsed.data || {}));
+      if (parsed.range) {
+        const targetYear = findMostProgressedYear(parsed.range, parsed.archive || [], parsed.data || {});
+        setSelectedDate(targetYear !== null
+          ? findFirstGapInYear(targetYear, parsed.range, parsed.archive || [])
+          : findSmartStartDate(parsed.range, parsed.archive || [], parsed.data || {}));
+      }
     }
   }, []);
 
