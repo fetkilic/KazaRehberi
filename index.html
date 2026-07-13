@@ -281,12 +281,37 @@ function App() {
   }, [archive]);
 
   const findSmartStartDate = useCallback((r, arch, dta) => {
-    let checkDate = new Date(r.startY, r.startM, 1);
-    const endDate = new Date(r.endY, r.endM, 31);
-    while (checkDate <= endDate) {
-      const y = checkDate.getFullYear(), m = checkDate.getMonth(), d = checkDate.getDate();
-      if (!isDayDone(d, m, y, arch)) return { d, m, y };
-      checkDate.setDate(checkDate.getDate() + 1);
+    const startY = Math.min(r.startY, r.endY);
+    const endY = Math.max(r.startY, r.endY);
+    // Her yıl için kalan kaza namazı sayısını hesapla
+    let bestYear = null, bestPrayers = -1;
+    for (let y = startY; y <= endY; y++) {
+      if (arch.some(a => a.type === 'year' && a.y === y)) continue;
+      const sM = (y === r.startY) ? r.startM : 0;
+      const eM = (y === r.endY) ? r.endM : 11;
+      let rPrayers = 0;
+      for (let m = sM; m <= eM; m++) {
+        if (arch.some(a => a.type === 'month' && a.m === m && a.y === y)) continue;
+        const dCount = new Date(y, m + 1, 0).getDate();
+        for (let d = 1; d <= dCount; d++) {
+          if (isDayDone(d, m, y, arch)) continue;
+          const dKey = `${d}-${m}-${y}`;
+          rPrayers += (PRAYERS.length - PRAYERS.filter(p => (dta[dKey] || {})[p]).length);
+        }
+      }
+      if (rPrayers > bestPrayers) { bestPrayers = rPrayers; bestYear = y; }
+    }
+    // En çok kaza olan yılın ilk kılınmamış gününü bul
+    if (bestYear !== null && bestPrayers > 0) {
+      const sM = (bestYear === r.startY) ? r.startM : 0;
+      const eM = (bestYear === r.endY) ? r.endM : 11;
+      for (let m = sM; m <= eM; m++) {
+        if (arch.some(a => a.type === 'month' && a.m === m && a.y === bestYear)) continue;
+        const dCount = new Date(bestYear, m + 1, 0).getDate();
+        for (let d = 1; d <= dCount; d++) {
+          if (!isDayDone(d, m, bestYear, arch)) return { d, m, y: bestYear };
+        }
+      }
     }
     return { d: 1, m: r.startM, y: r.startY };
   }, [isDayDone]);
