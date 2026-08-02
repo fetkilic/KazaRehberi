@@ -167,6 +167,18 @@ select:disabled{opacity:.45; cursor:not-allowed;}
 .is-checked{background:rgba(201,163,92,.08); border-color:rgba(201,163,92,.3);}
 .is-checked .custom-check{background:var(--gold);}
 .is-checked .custom-check::after{content:'✓'; position:absolute; color:var(--bg-deep); font-weight:bold; font-size:12px; left:3px; top:-1px;}
+.prayer-group{
+  border:1px solid var(--gold-soft); border-radius:15px; padding:9px 7px 2px;
+  margin-bottom:7px; background:rgba(201,163,92,.035);
+}
+.prayer-group .prayer-row{ margin-bottom:5px; }
+.prayer-group-row{ display:flex; gap:8px; }
+.prayer-group-row .prayer-row{ flex:1; min-width:0; }
+.prayer-group-row .prayer-row span{ overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+.prayer-group-label{
+  font-size:.6rem; color:var(--gold-bright); text-transform:uppercase; letter-spacing:1px;
+  font-weight:700; padding:0 7px 6px;
+}
 
 /* ---------- disclosure ---------- */
 .disclosure-btn{
@@ -225,6 +237,9 @@ select:disabled{opacity:.45; cursor:not-allowed;}
 const { useState, useEffect, useMemo, useCallback } = React;
 
 const PRAYERS = ['Sabah', 'Öğle', 'İkindi', 'Akşam', 'Yatsı', 'Vitr'];
+// Display-only grouping — Yatsı ve Vitr birbirine bağlı olduğu için görsel olarak gruplanır.
+// Bu, veri modelini (PRAYERS dizisi, dKey yapısı, sayaçlar) hiç etkilemez.
+const PRAYER_GROUPS = [['Sabah'], ['Öğle'], ['İkindi'], ['Akşam'], ['Yatsı', 'Vitr']];
 const MONTHS = ['Ocak', 'Şubat', 'Mart', 'Nisan', 'Mayıs', 'Haziran', 'Temmuz', 'Ağustos', 'Eylül', 'Ekim', 'Kasım', 'Aralık'];
 const WEEKDAYS = ['Pzt', 'Sal', 'Çar', 'Per', 'Cum', 'Cmt', 'Paz'];
 const STORAGE_KEY = 'kaza_v23_final_nav';
@@ -235,7 +250,7 @@ const Logo = ({ onSettings }) => (
   <div className="arch-header">
     {onSettings && <button className="gear-btn" onClick={onSettings} aria-label="Ayarlar">⚙</button>}
     <img src={LOGO_URL} className="app-logo-img" alt="Logo" />
-    <div><span className="logo-text">KAZA REHBERİ</span><span className="version-badge">2.8</span></div>
+    <div><span className="logo-text">KAZA REHBERİ</span><span className="version-badge">3.0.1</span></div>
     <div className="logo-subtext">Manevi Yolculuk Takibi</div>
   </div>
 );
@@ -406,37 +421,46 @@ function App() {
     if (prayerStats.donePrayers === 0) return null;
 
     const now = new Date();
+
+    // Lifetime average — always computed, acts as a stabilizing anchor so a single
+    // quiet/thin recent window (or one big undo) can't send the estimate flying decades away.
+    let earliest = usageStart ? new Date(usageStart) : null;
+    archive.forEach(a => {
+      const t = parseStamp(a.completedAt);
+      if (t && (!earliest || t < earliest)) earliest = t;
+    });
+    let lifetimePace = null;
+    if (earliest) {
+      const elapsedDays = Math.max(1, (now - earliest) / 86400000);
+      lifetimePace = prayerStats.donePrayers / elapsedDays;
+    }
+
+    // Recent 14-day window
     const WINDOW_DAYS = 14;
     const cutoff = new Date(now.getTime() - WINDOW_DAYS * 86400000);
     const recentEntries = activityLog.filter(e => new Date(e.ts) >= cutoff);
     const recentSum = recentEntries.reduce((s, e) => s + e.delta, 0);
 
-    let pace = null;
+    let pace = lifetimePace;
     let usedRecentWindow = false;
     if (recentSum > 0) {
       let windowStart = cutoff;
       if (usageStart && new Date(usageStart) > windowStart) windowStart = new Date(usageStart);
       const elapsedWindowDays = Math.max(1, (now - windowStart) / 86400000);
-      pace = recentSum / elapsedWindowDays;
+      const recentPace = recentSum / elapsedWindowDays;
+      // Trust the recent number more the more log entries actually back it up —
+      // NOT how much wall-clock time the window spans (a single lucky entry
+      // shouldn't get near-full trust just because 14 days have passed).
+      const dataConfidence = Math.min(1, recentEntries.length / 10);
+      const recentWeight = 0.15 + 0.6 * dataConfidence; // 0.15 – 0.75
+      pace = lifetimePace ? (recentPace * recentWeight + lifetimePace * (1 - recentWeight)) : recentPace;
       usedRecentWindow = true;
-    }
-
-    if (!pace || pace <= 0) {
-      let earliest = usageStart ? new Date(usageStart) : null;
-      archive.forEach(a => {
-        const t = parseStamp(a.completedAt);
-        if (t && (!earliest || t < earliest)) earliest = t;
-      });
-      if (!earliest) return null;
-      const elapsedDays = Math.max(1, (now - earliest) / 86400000);
-      pace = prayerStats.donePrayers / elapsedDays;
-      usedRecentWindow = false;
     }
 
     if (!pace || pace <= 0) return null;
     const daysNeeded = Math.ceil(remainingPrayers / pace);
     const finish = new Date(now.getTime() + daysNeeded * 86400000);
-    const windowNote = usedRecentWindow ? ' (son 14 gün)' : '';
+    const windowNote = usedRecentWindow ? ' (son 14 gün ağırlıklı)' : '';
     return {
       done: false,
       dateLabel: `${finish.getDate()} ${MONTHS[finish.getMonth()]} ${finish.getFullYear()}`,
@@ -720,14 +744,21 @@ function App() {
 
       <div className="card">
         <p className="day-focus-label">{selectedDate.d} {MONTHS[selectedDate.m]} {selectedDate.y} için kılınan namazlar</p>
-        {PRAYERS.map(p => {
-          const c = (data[dKey]||{})[p] || dayDone;
-          return (
-            <div key={p} className={`prayer-row ${c ? 'is-checked' : ''} ${dayDone ? 'disabled-row' : ''}`} onClick={() => !dayDone && togglePrayer(dKey, p)}>
-              <div className="custom-check"></div><span>{p} Namazı</span>
+        {PRAYER_GROUPS.map((group, gi) => (
+          <div key={gi} className={group.length > 1 ? 'prayer-group' : ''}>
+            {group.length > 1 && <div className="prayer-group-label">Yatsı Vakti</div>}
+            <div className={group.length > 1 ? 'prayer-group-row' : ''}>
+              {group.map(p => {
+                const c = (data[dKey]||{})[p] || dayDone;
+                return (
+                  <div key={p} className={`prayer-row ${c ? 'is-checked' : ''} ${dayDone ? 'disabled-row' : ''}`} onClick={() => !dayDone && togglePrayer(dKey, p)}>
+                    <div className="custom-check"></div><span>{p} Namazı</span>
+                  </div>
+                );
+              })}
             </div>
-          );
-        })}
+          </div>
+        ))}
         <button className="btn btn-gold" style={{marginTop:'6px'}} disabled={dayDone} onClick={completeDay}>GÜNÜ TAMAMLA</button>
       </div>
 
