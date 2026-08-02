@@ -94,6 +94,7 @@ button{font-family:inherit;}
   color:var(--ink); font-size:16px; cursor:pointer;
   display:flex; align-items:center; justify-content:center;
 }
+.gear-btn.dash-btn{ right:auto; left:14px; font-size:15px; }
 
 /* ---------- generic cards ---------- */
 .card{
@@ -229,6 +230,26 @@ select:disabled{opacity:.45; cursor:not-allowed;}
 .history-scroll{max-height:240px; overflow-y:auto;}
 .congrats-emoji{font-size:2rem;}
 #backup-upload,#backup-upload-init{display:none;}
+
+/* ---------- dashboard ---------- */
+.dash-section-title{color:var(--gold-bright); margin:0 0 14px; font-size:.85rem; letter-spacing:.5px;}
+.bar-row{display:flex; align-items:center; gap:10px; margin-bottom:10px;}
+.bar-label{width:52px; flex:none; font-size:.72rem; color:var(--muted);}
+.bar-track{flex:1; height:10px; background:rgba(255,255,255,.06); border-radius:6px; overflow:hidden;}
+.bar-fill{height:100%; background:linear-gradient(90deg, var(--gold), var(--gold-bright)); border-radius:6px;}
+.bar-fill.gold{background:linear-gradient(90deg, #7fae94, var(--success));}
+.bar-pct{width:38px; flex:none; text-align:right; font-size:.68rem; color:var(--muted);}
+.pace-chart{display:flex; align-items:flex-end; gap:6px; height:110px; padding-top:10px;}
+.pace-col{flex:1; display:flex; flex-direction:column; align-items:center; justify-content:flex-end; height:100%;}
+.pace-bar{width:100%; max-width:22px; background:linear-gradient(180deg, var(--gold-bright), var(--gold)); border-radius:5px 5px 0 0; min-height:4px;}
+.pace-label{font-size:.55rem; color:var(--muted); margin-top:6px; white-space:nowrap;}
+.badge-grid{display:flex; flex-wrap:wrap; gap:8px;}
+.badge-chip{
+  font-size:.68rem; padding:7px 11px; border-radius:20px; border:1px solid var(--border);
+  background:rgba(255,255,255,.03); color:var(--muted);
+}
+.badge-chip.achieved{ border-color:var(--gold); color:var(--gold-bright); background:rgba(201,163,92,.1); }
+.dash-header{ padding-bottom:24px; }
 </style>
 </head>
 <body>
@@ -246,11 +267,12 @@ const STORAGE_KEY = 'kaza_v23_final_nav';
 const LOGO_URL = 'https://raw.githubusercontent.com/fetkilic/KazaRehberi/refs/heads/main/logo.jpg';
 const TYPE_LABELS = { day: 'GÜN', week: 'HAFTA', month: 'AY', year: 'YIL' };
 
-const Logo = ({ onSettings }) => (
+const Logo = ({ onSettings, onDashboard }) => (
   <div className="arch-header">
+    {onDashboard && <button className="gear-btn dash-btn" onClick={onDashboard} aria-label="Panel">📊</button>}
     {onSettings && <button className="gear-btn" onClick={onSettings} aria-label="Ayarlar">⚙</button>}
     <img src={LOGO_URL} className="app-logo-img" alt="Logo" />
-    <div><span className="logo-text">KAZA REHBERİ</span><span className="version-badge">3.0.1</span></div>
+    <div><span className="logo-text">KAZA REHBERİ</span><span className="version-badge">3.1</span></div>
     <div className="logo-subtext">Manevi Yolculuk Takibi</div>
   </div>
 );
@@ -281,6 +303,7 @@ function App() {
   const [interimSuccess, setInterimSuccess] = useState(null);
   const [showBulk, setShowBulk] = useState(false);
   const [showSettings, setShowSettings] = useState(false);
+  const [showDashboard, setShowDashboard] = useState(false);
   const [usageStart, setUsageStart] = useState(null);
   const [activityLog, setActivityLog] = useState([]);
 
@@ -467,6 +490,92 @@ function App() {
       paceLabel: (pace >= 1 ? `günde ort. ${pace.toFixed(1)} vakit` : `haftada ort. ${(pace*7).toFixed(1)} vakit`) + windowNote
     };
   }, [archive, range, prayerStats, usageStart, activityLog]);
+
+  // ---------- Dashboard statistics ----------
+  const yearlyProgress = useMemo(() => {
+    if (!range) return [];
+    const out = [];
+    for (let y = range.startY; y <= range.endY; y++) {
+      let totalVakit = 0, doneVakit = 0;
+      const sM = (y === range.startY) ? range.startM : 0;
+      const eM = (y === range.endY) ? range.endM : 11;
+      for (let m = sM; m <= eM; m++) {
+        const dCount = daysInMonth(m, y);
+        for (let d = 1; d <= dCount; d++) {
+          totalVakit += PRAYERS.length;
+          if (isDayDone(d, m, y)) doneVakit += PRAYERS.length;
+          else { const dKey = `${d}-${m}-${y}`; doneVakit += PRAYERS.filter(p => (data[dKey]||{})[p]).length; }
+        }
+      }
+      out.push({ y, doneVakit, totalVakit, pct: totalVakit ? Math.round((doneVakit/totalVakit)*100) : 0 });
+    }
+    return out;
+  }, [archive, range, data, isDayDone]);
+
+  const streakInfo = useMemo(() => {
+    const set = new Set();
+    activityLog.forEach(e => { if (e.delta > 0) { const d = new Date(e.ts); set.add(`${d.getFullYear()}-${d.getMonth()}-${d.getDate()}`); } });
+    archive.forEach(a => { const t = parseStamp(a.completedAt); if (t) set.add(`${t.getFullYear()}-${t.getMonth()}-${t.getDate()}`); });
+    if (set.size === 0) return { current: 0, longest: 0 };
+    const dates = [...set].map(k => { const [y,m,d] = k.split('-').map(Number); return new Date(y,m,d); }).sort((a,b)=>a-b);
+    let longest = 1, run = 1;
+    for (let i = 1; i < dates.length; i++) {
+      const diff = Math.round((dates[i] - dates[i-1]) / 86400000);
+      if (diff === 1) { run++; } else { longest = Math.max(longest, run); run = 1; }
+    }
+    longest = Math.max(longest, run);
+    // current streak: walk back from today
+    let current = 0;
+    let cursor = new Date(); cursor.setHours(0,0,0,0);
+    while (set.has(`${cursor.getFullYear()}-${cursor.getMonth()}-${cursor.getDate()}`)) {
+      current++; cursor.setDate(cursor.getDate() - 1);
+    }
+    return { current, longest };
+  }, [activityLog, archive]);
+
+  const perPrayerBreakdown = useMemo(() => {
+    if (!range) return [];
+    const counts = {}; PRAYERS.forEach(p => counts[p] = 0);
+    let totalDays = 0;
+    let curr = new Date(range.startY, range.startM, 1);
+    while (curr <= new Date(range.endY, range.endM, 1)) {
+      const m = curr.getMonth(), y = curr.getFullYear(), dCount = daysInMonth(m, y);
+      for (let d = 1; d <= dCount; d++) {
+        totalDays++;
+        const dKey = `${d}-${m}-${y}`;
+        const dayFull = isDayDone(d, m, y);
+        PRAYERS.forEach(p => { if (dayFull || (data[dKey]||{})[p]) counts[p]++; });
+      }
+      curr.setMonth(curr.getMonth() + 1);
+    }
+    return PRAYERS.map(p => ({ p, done: counts[p], total: totalDays, pct: totalDays ? Math.round((counts[p]/totalDays)*100) : 0 }));
+  }, [archive, range, data, isDayDone]);
+
+  const paceHistory = useMemo(() => {
+    const WEEKS = 8;
+    const now = new Date();
+    const buckets = [];
+    for (let w = WEEKS - 1; w >= 0; w--) {
+      const weekEnd = new Date(now.getTime() - w * 7 * 86400000);
+      const weekStart = new Date(weekEnd.getTime() - 7 * 86400000);
+      const sum = activityLog
+        .filter(e => { const t = new Date(e.ts); return t > weekStart && t <= weekEnd; })
+        .reduce((s, e) => s + e.delta, 0);
+      buckets.push({ label: `${weekEnd.getDate()}/${weekEnd.getMonth()+1}`, value: Math.max(0, sum) });
+    }
+    return buckets;
+  }, [activityLog]);
+
+  const milestones = useMemo(() => {
+    const list = [];
+    const vakitTiers = [50, 100, 250, 500, 1000, 2500, 5000, 10000];
+    vakitTiers.forEach(t => list.push({ label: `${t} vakit`, achieved: prayerStats.donePrayers >= t }));
+    const streakTiers = [7, 30, 100, 365];
+    streakTiers.forEach(t => list.push({ label: `${t} gün streak`, achieved: streakInfo.longest >= t }));
+    const completedYears = yearlyProgress.filter(y => y.pct >= 100).length;
+    if (completedYears > 0) list.push({ label: `${completedYears} yıl tamamlandı`, achieved: true });
+    return list;
+  }, [prayerStats, streakInfo, yearlyProgress]);
 
   const getRemainingByYear = (year) => {
     if (!range || isDayDone(1, 0, year, archive)) {
@@ -668,6 +777,71 @@ function App() {
     </div>
   );
 
+  // ---------- dashboard screen ----------
+  if (showDashboard) {
+    const maxPaceVal = Math.max(1, ...paceHistory.map(b => b.value));
+    return (
+      <div className="app-shell">
+        <div className="arch-header dash-header">
+          <button className="gear-btn dash-btn" onClick={() => setShowDashboard(false)} aria-label="Geri">←</button>
+          <span className="logo-text" style={{fontSize:'1.05rem'}}>PANEL</span>
+          <div className="logo-subtext">İlerleme Özeti</div>
+        </div>
+
+        <div className="card">
+          <h4 className="dash-section-title">Yıllık İlerleme</h4>
+          {yearlyProgress.map(yp => (
+            <div key={yp.y} className="bar-row">
+              <span className="bar-label">{yp.y}</span>
+              <div className="bar-track"><div className="bar-fill" style={{width: `${yp.pct}%`}}></div></div>
+              <span className="bar-pct">%{yp.pct}</span>
+            </div>
+          ))}
+        </div>
+
+        <div className="card">
+          <h4 className="dash-section-title">Aktivite / Seri</h4>
+          <div className="stats-grid">
+            <div className="stat-box"><span className="stat-val">{streakInfo.current}</span><span className="stat-label">Güncel Seri (gün)</span></div>
+            <div className="stat-box"><span className="stat-val">{streakInfo.longest}</span><span className="stat-label">En Uzun Seri (gün)</span></div>
+          </div>
+        </div>
+
+        <div className="card">
+          <h4 className="dash-section-title">Vakit Bazında Dağılım</h4>
+          {perPrayerBreakdown.map(pb => (
+            <div key={pb.p} className="bar-row">
+              <span className="bar-label">{pb.p}</span>
+              <div className="bar-track"><div className="bar-fill gold" style={{width: `${pb.pct}%`}}></div></div>
+              <span className="bar-pct">%{pb.pct}</span>
+            </div>
+          ))}
+        </div>
+
+        <div className="card">
+          <h4 className="dash-section-title">Tempo Geçmişi (son 8 hafta)</h4>
+          <div className="pace-chart">
+            {paceHistory.map((b, i) => (
+              <div key={i} className="pace-col">
+                <div className="pace-bar" style={{height: `${Math.max(4, (b.value/maxPaceVal)*100)}%`}} title={`${b.value} vakit`}></div>
+                <span className="pace-label">{b.label}</span>
+              </div>
+            ))}
+          </div>
+        </div>
+
+        <div className="card">
+          <h4 className="dash-section-title">Kilometre Taşları</h4>
+          <div className="badge-grid">
+            {milestones.map((m, i) => (
+              <div key={i} className={`badge-chip ${m.achieved ? 'achieved' : ''}`}>{m.achieved ? '🏅' : '🔒'} {m.label}</div>
+            ))}
+          </div>
+        </div>
+      </div>
+    );
+  }
+
   // ---------- main screen ----------
   const yearsInR = Array.from({length: Math.abs(range.endY - range.startY) + 1}, (_, i) => Math.min(range.startY, range.endY) + i);
   const curYearS = getRemainingByYear(selectedDate.y);
@@ -680,7 +854,7 @@ function App() {
 
   return (
     <div className="app-shell">
-      <Logo onSettings={() => setShowSettings(true)} />
+      <Logo onSettings={() => setShowSettings(true)} onDashboard={() => setShowDashboard(true)} />
 
       <div className="card progress-card">
         <ProgressRing percent={Number(stats.percent)} />
@@ -752,7 +926,7 @@ function App() {
                 const c = (data[dKey]||{})[p] || dayDone;
                 return (
                   <div key={p} className={`prayer-row ${c ? 'is-checked' : ''} ${dayDone ? 'disabled-row' : ''}`} onClick={() => !dayDone && togglePrayer(dKey, p)}>
-                    <div className="custom-check"></div><span>{p} Namazı</span>
+                    <div className="custom-check"></div><span>{group.length > 1 ? p : `${p} Namazı`}</span>
                   </div>
                 );
               })}
