@@ -6,9 +6,9 @@
 <title>Kaza Rehberi</title>
 <link rel="manifest" href="manifest.json">
 <meta name="theme-color" content="#0b211c">
-<link rel="apple-touch-icon" href="icons/apple-touch-icon.png">
-<link rel="icon" type="image/png" sizes="192x192" href="icons/icon-192.png">
-<link rel="icon" type="image/png" sizes="512x512" href="icons/icon-512.png">
+<link rel="apple-touch-icon" href="apple-touch-icon.png">
+<link rel="icon" type="image/png" sizes="192x192" href="icon-192.png">
+<link rel="icon" type="image/png" sizes="512x512" href="icon-512.png">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
 <meta name="apple-mobile-web-app-title" content="KazaRehberi">
@@ -277,7 +277,7 @@ const PRAYER_GROUPS = [['Sabah'], ['Öğle'], ['İkindi'], ['Akşam'], ['Yatsı'
 const MONTHS = ['Ocak', 'Şubat', 'Mart', 'Nisan', 'Mayıs', 'Haziran', 'Temmuz', 'Ağustos', 'Eylül', 'Ekim', 'Kasım', 'Aralık'];
 const WEEKDAYS = ['Pzt', 'Sal', 'Çar', 'Per', 'Cum', 'Cmt', 'Paz'];
 const STORAGE_KEY = 'kaza_v23_final_nav';
-const LOGO_URL = 'icons/icon-192.png';
+const LOGO_URL = 'icon-192.png';
 const TYPE_LABELS = { day: 'GÜN', week: 'HAFTA', month: 'AY', year: 'YIL' };
 
 const Logo = ({ onSettings, onDashboard }) => (
@@ -285,7 +285,7 @@ const Logo = ({ onSettings, onDashboard }) => (
     {onDashboard && <button className="gear-btn dash-btn" onClick={onDashboard} aria-label="Panel">📊</button>}
     {onSettings && <button className="gear-btn" onClick={onSettings} aria-label="Ayarlar">⚙</button>}
     <img src={LOGO_URL} className="app-logo-img" alt="Logo" />
-    <div><span className="logo-text">KAZA REHBERİ</span><span className="version-badge">3.3</span></div>
+    <div><span className="logo-text">KAZA REHBERİ</span><span className="version-badge">3.3.1</span></div>
     <div className="logo-subtext">Manevi Yolculuk Takibi</div>
   </div>
 );
